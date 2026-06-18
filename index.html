@@ -608,11 +608,50 @@ function dismissScanPrompt() {
   scanPromptOpen = false;
   lastCodeTime = Date.now();
   document.getElementById('scan-modal').classList.remove('show');
-  // Resume scanning if camera is still active
-  if (cameraActive && codeReader) {
-    try { codeReader.resumeContinuousDecode(); } catch(e) {}
-  }
 }
+
+// ── Physical barcode scanner support ─────────────────────
+// Scanners act like keyboards: fast keystrokes then Enter.
+// Capture globally so the field doesn't need to be focused.
+let scanBuffer = '';
+let scanBufferTimer = null;
+
+document.addEventListener('keydown', function(e) {
+  if (!document.getElementById('page-scan').classList.contains('active')) return;
+  if (scanPromptOpen) return;
+  if (e.key.length > 1 && e.key !== 'Enter') return;
+
+  if (e.key === 'Enter') {
+    if (scanBuffer.length > 0) {
+      const bc = scanBuffer.trim();
+      scanBuffer = '';
+      clearTimeout(scanBufferTimer);
+      if (bc) addItem(bc);
+    }
+    // If barcode field is focused, onBarcodeKey handles it normally
+  } else {
+    if (document.activeElement === document.getElementById('inp-barcode')) {
+      scanBuffer = '';
+      return;
+    }
+    scanBuffer += e.key;
+    clearTimeout(scanBufferTimer);
+    scanBufferTimer = setTimeout(() => {
+      const inp = document.getElementById('inp-barcode');
+      if (inp && scanBuffer.length > 0) { inp.value = scanBuffer; inp.focus(); }
+      scanBuffer = '';
+    }, 100);
+  }
+});
+
+// Re-focus barcode field when tapping non-interactive areas
+document.addEventListener('click', function(e) {
+  if (!document.getElementById('page-scan').classList.contains('active')) return;
+  if (scanPromptOpen) return;
+  const tag = e.target.tagName;
+  if (tag === 'INPUT' || tag === 'BUTTON' || tag === 'SELECT' || tag === 'VIDEO') return;
+  setTimeout(() => document.getElementById('inp-barcode')?.focus(), 50);
+});
 
 // ── Camera (ZXing) ────────────────────────────────────────
 function toggleCamera() {
@@ -642,17 +681,14 @@ async function startCamera() {
     // Step 2: start ZXing continuous decode loop on the video element
     codeReader = new ZXing.BrowserMultiFormatReader();
     codeReader.decodeFromVideoElementContinuously(video, (result, err) => {
-      if (result && !scanPromptOpen) {
-        const code = result.getText();
-        const now = Date.now();
-        if (code === lastCode && now - lastCodeTime < 3000) return;
-        lastCode = code;
-        lastCodeTime = now;
-        status.textContent = '✓ ' + code;
-        // Stop continuous scanning while prompt is open
-        try { codeReader.stopContinuousDecode(); } catch(e) {}
-        showScanPrompt(code);
-      }
+      if (!result || scanPromptOpen) return;
+      const code = result.getText();
+      const now = Date.now();
+      if (code === lastCode && now - lastCodeTime < 3000) return;
+      lastCode = code;
+      lastCodeTime = now;
+      status.textContent = '✓ ' + code;
+      showScanPrompt(code);
     });
 
   } catch (err) {
