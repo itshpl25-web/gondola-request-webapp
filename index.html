@@ -145,18 +145,36 @@
     background: #000;
     margin-bottom: 12px;
   }
-  #video { width: 100%; height: 200px; object-fit: cover; display: block; }
+  #video { width: 100%; height: 240px; object-fit: cover; display: block; }
   .scan-line {
     position: absolute; left: 0; right: 0; top: 50%;
     height: 2px; background: rgba(26,115,232,0.8);
     box-shadow: 0 0 6px rgba(26,115,232,0.6);
+    pointer-events: none;
   }
+  .scan-corners {
+    position: absolute; inset: 0;
+    pointer-events: none;
+  }
+  .scan-corners::before, .scan-corners::after {
+    content: '';
+    position: absolute;
+    width: 40px; height: 40px;
+    border-color: #fff; border-style: solid;
+    opacity: 0.8;
+  }
+  .scan-corners::before { top: 20px; left: 20px; border-width: 3px 0 0 3px; border-radius: 4px 0 0 0; }
+  .scan-corners::after  { bottom: 20px; right: 20px; border-width: 0 3px 3px 0; border-radius: 0 0 4px 0; }
   .close-cam-btn {
     position: absolute; top: 8px; right: 8px;
     background: rgba(0,0,0,0.55); border: none; color: #fff;
     border-radius: 50%; width: 30px; height: 30px;
     font-size: 18px; cursor: pointer;
     display: flex; align-items: center; justify-content: center;
+  }
+  #scan-status {
+    position: absolute; bottom: 8px; left: 0; right: 0;
+    text-align: center; font-size: 12px; color: rgba(255,255,255,0.8);
   }
 
   .cam-btn {
@@ -171,6 +189,7 @@
     flex-shrink: 0;
   }
   .cam-btn:active { background: #f0f0f0; }
+  .cam-btn.active { background: var(--accent-bg); border-color: var(--accent); }
 
   .hint { font-size: 12px; color: var(--text3); margin-top: 8px; }
 
@@ -257,7 +276,7 @@
 
 <!-- ===== PASTE YOUR APPS SCRIPT WEB APP URL BELOW ===== -->
 <script>
-  const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwdcCIp1LFy7aytov6cK4hwcw0twCAuATnFBenXoNmNBSClN3JlSyL-0_L6qRJNvgfnmw/exec";
+  const APPS_SCRIPT_URL = "PASTE_YOUR_WEB_APP_URL_HERE";
 </script>
 <!-- ===================================================== -->
 
@@ -301,10 +320,10 @@
       <label>Popcard size</label>
       <select id="inp-size">
         <option value="">Select size...</option>
-        <option>A4(1x1)</option>
-        <option>A5(2x2)</option>
-        <option>A6(4x4)</option>
-        <option>A8(8x8)</option>
+        <option>A4</option>
+        <option>A5</option>
+        <option>A6</option>
+        <option>A8</option>
       </select>
     </div>
     <button class="btn btn-primary btn-full" onclick="goToScan()">
@@ -321,7 +340,9 @@
     <div id="video-wrap">
       <video id="video" autoplay playsinline muted></video>
       <div class="scan-line"></div>
+      <div class="scan-corners"></div>
       <button class="close-cam-btn" onclick="stopCamera()">✕</button>
+      <div id="scan-status">Point camera at barcode</div>
     </div>
     <div class="barcode-row">
       <div class="field">
@@ -400,10 +421,11 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/zxing-js/0.20.0/zxing.min.js"></script>
 <script>
 let items = [];
-let quaggaRunning = false;
+let codeReader = null;
+let cameraActive = false;
 let lastCode = '';
 let lastCodeTime = 0;
 
@@ -513,43 +535,85 @@ function renderItems() {
   </table>`;
 }
 
-// ── Camera ────────────────────────────────────────────────
+// ── Camera (ZXing) ────────────────────────────────────────
 function toggleCamera() {
-  quaggaRunning ? stopCamera() : startCamera();
+  cameraActive ? stopCamera() : startCamera();
 }
 
-function startCamera() {
+async function startCamera() {
   const wrap = document.getElementById('video-wrap');
+  const camBtn = document.querySelector('.cam-btn');
+  const video = document.getElementById('video');
+  const status = document.getElementById('scan-status');
+
   wrap.style.display = 'block';
-  if (typeof Quagga === 'undefined') { toast('Scanner not ready, try again'); wrap.style.display='none'; return; }
-  Quagga.init({
-    inputStream: {
-      name: 'Live', type: 'LiveStream',
-      target: document.getElementById('video'),
-      constraints: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
-    },
-    decoder: {
-      readers: ['ean_reader','ean_8_reader','code_128_reader','code_39_reader','upc_reader','upc_e_reader']
-    },
-    locate: true
-  }, err => {
-    if (err) { toast('Camera not available'); wrap.style.display='none'; return; }
-    Quagga.start();
-    quaggaRunning = true;
-  });
-  Quagga.onDetected(result => {
-    const code = result.codeResult.code;
-    const now = Date.now();
-    if (code === lastCode && now - lastCodeTime < 2500) return;
-    lastCode = code; lastCodeTime = now;
-    const qty = parseInt(document.getElementById('inp-qty').value) || 1;
-    addItem(code, qty);
-  });
+  camBtn.classList.add('active');
+  status.textContent = 'Starting camera…';
+
+  try {
+    // Get camera stream directly — works on all mobile browsers
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
+    });
+    video.srcObject = stream;
+    await video.play();
+    cameraActive = true;
+    status.textContent = 'Point camera at barcode';
+
+    // Use ZXing to decode from video stream
+    if (typeof ZXing !== 'undefined') {
+      codeReader = new ZXing.BrowserMultiFormatReader();
+      codeReader.decodeFromStream(stream, video, (result, err) => {
+        if (result) {
+          const code = result.getText();
+          const now = Date.now();
+          if (code === lastCode && now - lastCodeTime < 2500) return;
+          lastCode = code;
+          lastCodeTime = now;
+          status.textContent = '✓ Scanned: ' + code;
+          const qty = parseInt(document.getElementById('inp-qty').value) || 1;
+          addItem(code, qty);
+        }
+      });
+    } else {
+      // Fallback: ZXing not loaded, just show stream and let user read barcode manually
+      status.textContent = 'Camera ready — enter barcode manually';
+      toast('Scanner library not loaded — type barcode manually', 3000);
+    }
+
+  } catch (err) {
+    wrap.style.display = 'none';
+    camBtn.classList.remove('active');
+    if (err.name === 'NotAllowedError') {
+      toast('Camera permission denied — please allow camera access', 4000);
+    } else if (err.name === 'NotFoundError') {
+      toast('No camera found on this device', 3000);
+    } else {
+      toast('Camera error: ' + err.message, 4000);
+    }
+  }
 }
 
 function stopCamera() {
-  if (quaggaRunning) { try { Quagga.stop(); } catch(e){} quaggaRunning = false; }
-  document.getElementById('video-wrap').style.display = 'none';
+  const video = document.getElementById('video');
+  const wrap = document.getElementById('video-wrap');
+  const camBtn = document.querySelector('.cam-btn');
+
+  // Stop ZXing reader
+  if (codeReader) {
+    try { codeReader.reset(); } catch(e) {}
+    codeReader = null;
+  }
+
+  // Stop all video tracks
+  if (video.srcObject) {
+    video.srcObject.getTracks().forEach(t => t.stop());
+    video.srcObject = null;
+  }
+
+  cameraActive = false;
+  wrap.style.display = 'none';
+  camBtn.classList.remove('active');
 }
 
 // ── Page 3: Summary ───────────────────────────────────────
