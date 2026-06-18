@@ -421,7 +421,7 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/zxing-js/0.20.0/zxing.min.js"></script>
+<script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <script>
 let items = [];
 let codeReader = null;
@@ -551,7 +551,7 @@ async function startCamera() {
   status.textContent = 'Starting camera…';
 
   try {
-    // Get camera stream directly — works on all mobile browsers
+    // Step 1: get camera stream directly so permission works reliably
     const stream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
     });
@@ -560,30 +560,26 @@ async function startCamera() {
     cameraActive = true;
     status.textContent = 'Point camera at barcode';
 
-    // Use ZXing to decode from video stream
-    if (typeof ZXing !== 'undefined') {
-      codeReader = new ZXing.BrowserMultiFormatReader();
-      codeReader.decodeFromStream(stream, video, (result, err) => {
-        if (result) {
-          const code = result.getText();
-          const now = Date.now();
-          if (code === lastCode && now - lastCodeTime < 2500) return;
-          lastCode = code;
-          lastCodeTime = now;
-          status.textContent = '✓ Scanned: ' + code;
-          const qty = parseInt(document.getElementById('inp-qty').value) || 1;
-          addItem(code, qty);
-        }
-      });
-    } else {
-      // Fallback: ZXing not loaded, just show stream and let user read barcode manually
-      status.textContent = 'Camera ready — enter barcode manually';
-      toast('Scanner library not loaded — type barcode manually', 3000);
-    }
+    // Step 2: start ZXing decoding loop on the video element
+    codeReader = new ZXing.BrowserMultiFormatReader();
+    codeReader.decodeFromVideoElement(video, (result, err) => {
+      if (result) {
+        const code = result.getText();
+        const now = Date.now();
+        if (code === lastCode && now - lastCodeTime < 2500) return;
+        lastCode = code;
+        lastCodeTime = now;
+        status.textContent = '✓ ' + code;
+        const qty = parseInt(document.getElementById('inp-qty').value) || 1;
+        addItem(code, qty);
+      }
+      // err here just means "no barcode in this frame" — ignore it
+    });
 
   } catch (err) {
     wrap.style.display = 'none';
     camBtn.classList.remove('active');
+    cameraActive = false;
     if (err.name === 'NotAllowedError') {
       toast('Camera permission denied — please allow camera access', 4000);
     } else if (err.name === 'NotFoundError') {
@@ -599,13 +595,10 @@ function stopCamera() {
   const wrap = document.getElementById('video-wrap');
   const camBtn = document.querySelector('.cam-btn');
 
-  // Stop ZXing reader
   if (codeReader) {
     try { codeReader.reset(); } catch(e) {}
     codeReader = null;
   }
-
-  // Stop all video tracks
   if (video.srcObject) {
     video.srcObject.getTracks().forEach(t => t.stop());
     video.srcObject = null;
