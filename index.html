@@ -155,16 +155,17 @@
   .scan-corners {
     position: absolute; inset: 0;
     pointer-events: none;
+    overflow: hidden;
   }
   .scan-corners::before, .scan-corners::after {
     content: '';
     position: absolute;
-    width: 40px; height: 40px;
+    width: 32px; height: 32px;
     border-color: #fff; border-style: solid;
     opacity: 0.8;
   }
-  .scan-corners::before { top: 20px; left: 20px; border-width: 3px 0 0 3px; border-radius: 4px 0 0 0; }
-  .scan-corners::after  { bottom: 20px; right: 20px; border-width: 0 3px 3px 0; border-radius: 0 0 4px 0; }
+  .scan-corners::before { top: 16px; left: 16px; border-width: 3px 0 0 3px; }
+  .scan-corners::after  { bottom: 16px; right: 16px; border-width: 0 3px 3px 0; }
   .close-cam-btn {
     position: absolute; top: 8px; right: 8px;
     background: rgba(0,0,0,0.55); border: none; color: #fff;
@@ -271,12 +272,23 @@
   .modal-qty-row input { flex: 1; }
   .modal-actions { display: flex; gap: 8px; }
   .modal-actions .btn { flex: 1; justify-content: center; }
+  .loading-overlay {
     position: fixed; inset: 0;
     background: rgba(255,255,255,0.85);
     display: none; align-items: center; justify-content: center;
     flex-direction: column; gap: 14px; z-index: 100;
+    overflow: hidden;
   }
   .loading-overlay.show { display: flex; }
+  .spinner {
+    width: 40px; height: 40px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+  }
+  .loading-overlay.show .spinner {
+    animation: spin 0.7s linear infinite;
+  }
   .spinner {
     width: 40px; height: 40px;
     border: 3px solid var(--border);
@@ -594,8 +606,12 @@ function confirmScanPrompt() {
 
 function dismissScanPrompt() {
   scanPromptOpen = false;
-  lastCodeTime = Date.now(); // prevent immediate re-trigger
+  lastCodeTime = Date.now();
   document.getElementById('scan-modal').classList.remove('show');
+  // Resume scanning if camera is still active
+  if (cameraActive && codeReader) {
+    try { codeReader.resumeContinuousDecode(); } catch(e) {}
+  }
 }
 
 // ── Camera (ZXing) ────────────────────────────────────────
@@ -633,6 +649,8 @@ async function startCamera() {
         lastCode = code;
         lastCodeTime = now;
         status.textContent = '✓ ' + code;
+        // Stop continuous scanning while prompt is open
+        try { codeReader.stopContinuousDecode(); } catch(e) {}
         showScanPrompt(code);
       }
     });
