@@ -248,7 +248,29 @@
   }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-  .loading-overlay {
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.5);
+    display: none; align-items: center; justify-content: center;
+    z-index: 200; padding: 16px;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 20px;
+    width: 100%; max-width: 340px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    animation: popIn 0.15s ease;
+  }
+  @keyframes popIn { from { transform: scale(0.92); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .modal-title { font-size: 13px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
+  .modal-barcode { font-family: monospace; font-size: 18px; font-weight: 600; color: var(--text); margin-bottom: 16px; word-break: break-all; }
+  .modal-qty-row { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+  .modal-qty-row label { font-size: 13px; color: var(--text2); font-weight: 500; white-space: nowrap; }
+  .modal-qty-row input { flex: 1; }
+  .modal-actions { display: flex; gap: 8px; }
+  .modal-actions .btn { flex: 1; justify-content: center; }
     position: fixed; inset: 0;
     background: rgba(255,255,255,0.85);
     display: none; align-items: center; justify-content: center;
@@ -414,6 +436,22 @@
   </div>
 </div>
 
+<!-- Scan Confirm Modal -->
+<div class="modal-overlay" id="scan-modal">
+  <div class="modal">
+    <div class="modal-title">📷 Barcode Scanned</div>
+    <div class="modal-barcode" id="modal-barcode"></div>
+    <div class="modal-qty-row">
+      <label>Qty</label>
+      <input type="number" id="modal-qty" value="1" min="1" max="9999" />
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-danger" onclick="dismissScanPrompt()">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmScanPrompt()">Add Item ✓</button>
+    </div>
+  </div>
+</div>
+
 <div class="loading-overlay" id="loading">
   <div class="spinner"></div>
   <p style="color:#555; font-size:14px;">Submitting to Google Sheet…</p>
@@ -430,6 +468,7 @@ let codeReader = null;
 let cameraActive = false;
 let lastCode = '';
 let lastCodeTime = 0;
+let scanPromptOpen = false;
 
 // ── Helpers ──────────────────────────────────────────────
 function showPage(id) {
@@ -537,6 +576,28 @@ function renderItems() {
   </table>`;
 }
 
+// ── Scan Prompt ───────────────────────────────────────────
+function showScanPrompt(code) {
+  scanPromptOpen = true;
+  document.getElementById('modal-barcode').textContent = code;
+  document.getElementById('modal-qty').value = document.getElementById('inp-qty').value || 1;
+  document.getElementById('scan-modal').classList.add('show');
+  setTimeout(() => document.getElementById('modal-qty').focus(), 100);
+}
+
+function confirmScanPrompt() {
+  const code = document.getElementById('modal-barcode').textContent;
+  const qty = parseInt(document.getElementById('modal-qty').value) || 1;
+  dismissScanPrompt();
+  addItem(code, qty);
+}
+
+function dismissScanPrompt() {
+  scanPromptOpen = false;
+  lastCodeTime = Date.now(); // prevent immediate re-trigger
+  document.getElementById('scan-modal').classList.remove('show');
+}
+
 // ── Camera (ZXing) ────────────────────────────────────────
 function toggleCamera() {
   cameraActive ? stopCamera() : startCamera();
@@ -565,17 +626,15 @@ async function startCamera() {
     // Step 2: start ZXing continuous decode loop on the video element
     codeReader = new ZXing.BrowserMultiFormatReader();
     codeReader.decodeFromVideoElementContinuously(video, (result, err) => {
-      if (result) {
+      if (result && !scanPromptOpen) {
         const code = result.getText();
         const now = Date.now();
-        if (code === lastCode && now - lastCodeTime < 2500) return;
+        if (code === lastCode && now - lastCodeTime < 3000) return;
         lastCode = code;
         lastCodeTime = now;
         status.textContent = '✓ ' + code;
-        const qty = parseInt(document.getElementById('inp-qty').value) || 1;
-        addItem(code, qty);
+        showScanPrompt(code);
       }
-      // err = no barcode in this frame, totally normal — ignore
     });
 
   } catch (err) {
