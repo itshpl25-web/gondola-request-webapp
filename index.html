@@ -310,7 +310,7 @@
 
 <!-- ===== PASTE YOUR APPS SCRIPT WEB APP URL BELOW ===== -->
 <script>
-  const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwdcCIp1LFy7aytov6cK4hwcw0twCAuATnFBenXoNmNBSClN3JlSyL-0_L6qRJNvgfnmw/exec";
+  const APPS_SCRIPT_URL = "PASTE_YOUR_WEB_APP_URL_HERE";
 </script>
 <!-- ===================================================== -->
 
@@ -382,7 +382,8 @@
       <div class="field">
         <label>Barcode</label>
         <input type="text" id="inp-barcode" placeholder="Scan or type barcode"
-          inputmode="numeric" onkeydown="onBarcodeKey(event)" autocomplete="off" />
+          onkeydown="onBarcodeKey(event)" autocomplete="off" autocorrect="off"
+          autocapitalize="off" spellcheck="false" />
       </div>
       <div class="field">
         <label>Qty</label>
@@ -527,6 +528,8 @@ function goToScan() {
 // ── Page 2: Scan ─────────────────────────────────────────
 function onBarcodeKey(e) {
   if (e.key === 'Enter') {
+    scanBuffer = '';
+    clearTimeout(scanBufferTimer);
     const bc = document.getElementById('inp-barcode').value.trim();
     if (bc) addItem(bc);
   }
@@ -619,26 +622,43 @@ let scanBufferTimer = null;
 document.addEventListener('keydown', function(e) {
   if (!document.getElementById('page-scan').classList.contains('active')) return;
   if (scanPromptOpen) return;
-  if (e.key.length > 1 && e.key !== 'Enter') return;
+
+  const barcodeInput = document.getElementById('inp-barcode');
+  const isInBarcodeField = document.activeElement === barcodeInput;
 
   if (e.key === 'Enter') {
+    // If field has focus, onBarcodeKey handles it — but also check global buffer
     if (scanBuffer.length > 0) {
       const bc = scanBuffer.trim();
       scanBuffer = '';
       clearTimeout(scanBufferTimer);
       if (bc) addItem(bc);
+      e.preventDefault();
+    } else if (!isInBarcodeField) {
+      // Enter without field focus — do nothing
     }
-    // If barcode field is focused, onBarcodeKey handles it normally
+    // if field has focus, onBarcodeKey handles it normally
+    return;
+  }
+
+  // Skip non-printable keys
+  if (e.key.length > 1) return;
+
+  if (isInBarcodeField) {
+    // Field has focus — let browser handle typing normally
+    // but buffer simultaneously to detect scanner speed
+    scanBuffer += e.key;
+    clearTimeout(scanBufferTimer);
+    scanBufferTimer = setTimeout(() => { scanBuffer = ''; }, 200);
   } else {
-    if (document.activeElement === document.getElementById('inp-barcode')) {
-      scanBuffer = '';
-      return;
-    }
+    // Field doesn't have focus — buffer all chars and focus field
     scanBuffer += e.key;
     clearTimeout(scanBufferTimer);
     scanBufferTimer = setTimeout(() => {
-      const inp = document.getElementById('inp-barcode');
-      if (inp && scanBuffer.length > 0) { inp.value = scanBuffer; inp.focus(); }
+      if (barcodeInput && scanBuffer.length > 0) {
+        barcodeInput.value = scanBuffer;
+        barcodeInput.focus();
+      }
       scanBuffer = '';
     }, 100);
   }
