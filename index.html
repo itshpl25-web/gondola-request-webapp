@@ -6,117 +6,42 @@
 <title>Gondola / Popcard Request</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
   :root {
-    --bg: #f5f5f5;
-    --surface: #ffffff;
-    --border: #e0e0e0;
-    --border2: #c8c8c8;
-    --text: #1a1a1a;
-    --text2: #555;
-    --text3: #999;
-    --accent: #1a73e8;
-    --accent-bg: #e8f0fe;
-    --danger: #d32f2f;
-    --danger-bg: #fdecea;
-    --success: #2e7d32;
-    --success-bg: #e8f5e9;
-    --radius: 10px;
-    --radius-sm: 6px;
+    --bg: #f5f5f5; --surface: #ffffff; --border: #e0e0e0; --border2: #c8c8c8;
+    --text: #1a1a1a; --text2: #555; --text3: #999; --accent: #1a73e8;
+    --accent-bg: #e8f0fe; --danger: #d32f2f; --danger-bg: #fdecea;
+    --success-bg: #e8f5e9; --radius: 10px; --radius-sm: 6px;
     --shadow: 0 1px 4px rgba(0,0,0,0.08);
   }
-
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
-    font-size: 15px;
-    line-height: 1.5;
+    background: var(--bg); color: var(--text); min-height: 100vh; font-size: 15px; line-height: 1.5;
   }
-
   .app-header {
-    background: var(--accent);
-    color: #fff;
-    padding: 14px 16px;
-    font-size: 16px;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    background: var(--accent); color: #fff; padding: 14px 16px; font-size: 16px;
+    font-weight: 600; display: flex; align-items: center; gap: 10px;
+    position: sticky; top: 0; z-index: 10; box-shadow: 0 2px 6px rgba(0,0,0,0.15);
   }
-
   .app-header svg { flex-shrink: 0; }
-
   .page { display: none; padding: 16px; max-width: 600px; margin: 0 auto; }
   .page.active { display: block; }
-
-  .card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 16px;
-    margin-bottom: 14px;
-    box-shadow: var(--shadow);
-  }
-
-  .card-title {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text2);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 14px;
-  }
-
-  label {
-    display: block;
-    font-size: 13px;
-    color: var(--text2);
-    margin-bottom: 5px;
-    font-weight: 500;
-  }
-
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 14px; box-shadow: var(--shadow); }
+  .card-title { font-size: 13px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px; }
+  label { display: block; font-size: 13px; color: var(--text2); margin-bottom: 5px; font-weight: 500; }
   input[type=text], input[type=number], select {
-    width: 100%;
-    padding: 10px 12px;
-    border: 1px solid var(--border2);
-    border-radius: var(--radius-sm);
-    font-size: 15px;
-    color: var(--text);
-    background: #fff;
-    outline: none;
-    transition: border-color 0.15s;
-    -webkit-appearance: none;
-    appearance: none;
+    width: 100%; padding: 10px 12px; border: 1px solid var(--border2); border-radius: var(--radius-sm);
+    font-size: 15px; color: var(--text); background: #fff; outline: none; transition: border-color 0.15s;
+    -webkit-appearance: none; appearance: none;
   }
   select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23555' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 36px; }
   input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(26,115,232,0.12); }
-
   .field { margin-bottom: 14px; }
   .field:last-child { margin-bottom: 0; }
-
   .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-
   .btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    padding: 11px 18px;
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--border2);
-    background: #fff;
-    color: var(--text);
-    font-size: 15px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background 0.15s, transform 0.1s;
-    -webkit-tap-highlight-color: transparent;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 11px 18px;
+    border-radius: var(--radius-sm); border: 1px solid var(--border2); background: #fff; color: var(--text);
+    font-size: 15px; font-weight: 500; cursor: pointer; transition: background 0.15s, transform 0.1s; -webkit-tap-highlight-color: transparent;
   }
   .btn:active { transform: scale(0.97); }
   .btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
@@ -125,145 +50,46 @@
   .btn-danger:hover { background: var(--danger-bg); }
   .btn-full { width: 100%; margin-top: 4px; }
   .btn-sm { padding: 7px 12px; font-size: 13px; }
-
-  .scan-box {
-    border: 2px dashed var(--border2);
-    border-radius: var(--radius);
-    padding: 14px;
-    background: #fafafa;
-    margin-bottom: 14px;
-  }
-
+  .scan-box { border: 2px dashed var(--border2); border-radius: var(--radius); padding: 14px; background: #fafafa; margin-bottom: 14px; }
   .barcode-row { display: grid; grid-template-columns: 1fr 80px 44px; gap: 8px; align-items: flex-end; }
   .barcode-row .field { margin-bottom: 0; }
-
-  #video-wrap {
-    display: none;
-    position: relative;
-    border-radius: var(--radius-sm);
-    overflow: hidden;
-    background: #000;
-    margin-bottom: 12px;
-  }
+  #video-wrap { display: none; position: relative; border-radius: var(--radius-sm); overflow: hidden; background: #000; margin-bottom: 12px; }
   #video { width: 100%; height: 240px; object-fit: cover; display: block; }
-  .scan-line {
-    position: absolute; left: 0; right: 0; top: 50%;
-    height: 2px; background: rgba(26,115,232,0.8);
-    box-shadow: 0 0 6px rgba(26,115,232,0.6);
-    pointer-events: none;
-  }
-  .scan-corners {
-    position: absolute; inset: 0;
-    pointer-events: none;
-    overflow: hidden;
-  }
-  .scan-corners::before, .scan-corners::after {
-    content: '';
-    position: absolute;
-    width: 32px; height: 32px;
-    border-color: #fff; border-style: solid;
-    opacity: 0.8;
-  }
+  .scan-line { position: absolute; left: 0; right: 0; top: 50%; height: 2px; background: rgba(26,115,232,0.8); box-shadow: 0 0 6px rgba(26,115,232,0.6); pointer-events: none; }
+  .scan-corners { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+  .scan-corners::before, .scan-corners::after { content: ''; position: absolute; width: 32px; height: 32px; border-color: #fff; border-style: solid; opacity: 0.8; }
   .scan-corners::before { top: 16px; left: 16px; border-width: 3px 0 0 3px; }
   .scan-corners::after  { bottom: 16px; right: 16px; border-width: 0 3px 3px 0; }
   .close-cam-btn {
-    position: absolute; top: 8px; right: 8px;
-    background: rgba(0,0,0,0.55); border: none; color: #fff;
-    border-radius: 50%; width: 30px; height: 30px;
-    font-size: 18px; cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
+    position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.55); border: none; color: #fff;
+    border-radius: 50%; width: 30px; height: 30px; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center;
   }
-  #scan-status {
-    position: absolute; bottom: 8px; left: 0; right: 0;
-    text-align: center; font-size: 12px; color: rgba(255,255,255,0.8);
-  }
-
-  .cam-btn {
-    width: 44px; height: 42px;
-    border: 1px solid var(--border2);
-    border-radius: var(--radius-sm);
-    background: #fff;
-    cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 20px;
-    -webkit-tap-highlight-color: transparent;
-    flex-shrink: 0;
-  }
+  #scan-status { position: absolute; bottom: 8px; left: 0; right: 0; text-align: center; font-size: 12px; color: rgba(255,255,255,0.8); }
+  .cam-btn { width: 44px; height: 42px; border: 1px solid var(--border2); border-radius: var(--radius-sm); background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 20px; -webkit-tap-highlight-color: transparent; flex-shrink: 0; }
   .cam-btn:active { background: #f0f0f0; }
   .cam-btn.active { background: var(--accent-bg); border-color: var(--accent); }
-
   .hint { font-size: 12px; color: var(--text3); margin-top: 8px; }
-
   .items-wrap { margin-top: 4px; }
   .empty-state { text-align: center; padding: 28px 16px; color: var(--text3); font-size: 14px; }
   .empty-state .icon { font-size: 36px; margin-bottom: 8px; }
-
   table { width: 100%; border-collapse: collapse; font-size: 14px; }
   th { text-align: left; font-size: 12px; font-weight: 600; color: var(--text2); padding: 6px 8px; border-bottom: 1px solid var(--border); }
   td { padding: 9px 8px; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: middle; }
   tr:last-child td { border-bottom: none; }
   .barcode-cell { font-family: monospace; font-size: 13px; word-break: break-all; }
-
-  .qty-input {
-    width: 64px; padding: 5px 8px; font-size: 14px;
-    border: 1px solid var(--border2); border-radius: var(--radius-sm);
-    text-align: center; background: #fff; color: var(--text);
-  }
-
-  .footer-actions {
-    display: flex; gap: 8px; justify-content: space-between;
-    align-items: center; padding-top: 14px;
-    border-top: 1px solid var(--border); margin-top: 10px;
-  }
-
+  .qty-input { width: 64px; padding: 5px 8px; font-size: 14px; border: 1px solid var(--border2); border-radius: var(--radius-sm); text-align: center; background: #fff; color: var(--text); }
+  .footer-actions { display: flex; gap: 8px; justify-content: space-between; align-items: center; padding-top: 14px; border-top: 1px solid var(--border); margin-top: 10px; }
   .meta-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
-  .tag {
-    font-size: 12px; padding: 4px 10px;
-    border-radius: 999px;
-    background: var(--accent-bg); color: var(--accent);
-    border: 1px solid rgba(26,115,232,0.2);
-    font-weight: 500;
-  }
-
-  .success-box {
-    text-align: center; padding: 28px 16px;
-  }
-  .success-icon {
-    width: 64px; height: 64px; border-radius: 50%;
-    background: var(--success-bg);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 32px; margin: 0 auto 14px;
-  }
+  .tag { font-size: 12px; padding: 4px 10px; border-radius: 999px; background: var(--accent-bg); color: var(--accent); border: 1px solid rgba(26,115,232,0.2); font-weight: 500; }
+  .success-box { text-align: center; padding: 28px 16px; }
+  .success-icon { width: 64px; height: 64px; border-radius: 50%; background: var(--success-bg); display: flex; align-items: center; justify-content: center; font-size: 32px; margin: 0 auto 14px; }
   .success-box h2 { font-size: 20px; margin-bottom: 6px; }
   .success-box p { font-size: 14px; color: var(--text2); margin-bottom: 20px; }
-
-  .toast {
-    position: fixed; bottom: 24px; left: 50%;
-    transform: translateX(-50%) translateY(20px);
-    background: #222; color: #fff;
-    padding: 10px 20px; border-radius: 999px;
-    font-size: 14px; opacity: 0;
-    transition: opacity 0.2s, transform 0.2s;
-    pointer-events: none; z-index: 999;
-    white-space: nowrap; max-width: 90vw;
-  }
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px); background: #222; color: #fff; padding: 10px 20px; border-radius: 999px; font-size: 14px; opacity: 0; transition: opacity 0.2s, transform 0.2s; pointer-events: none; z-index: 999; white-space: nowrap; max-width: 90vw; }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-
-  .modal-overlay {
-    position: fixed; inset: 0;
-    background: rgba(0,0,0,0.5);
-    display: none; align-items: center; justify-content: center;
-    z-index: 200; padding: 16px;
-  }
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 200; padding: 16px; }
   .modal-overlay.show { display: flex; }
-  .modal {
-    background: var(--surface);
-    border-radius: var(--radius);
-    padding: 20px;
-    width: 100%; max-width: 340px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
-    animation: popIn 0.15s ease;
-  }
+  .modal { background: var(--surface); border-radius: var(--radius); padding: 20px; width: 100%; max-width: 340px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); animation: popIn 0.15s ease; }
   @keyframes popIn { from { transform: scale(0.92); opacity: 0; } to { transform: scale(1); opacity: 1; } }
   .modal-title { font-size: 13px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
   .modal-barcode { font-family: monospace; font-size: 18px; font-weight: 600; color: var(--text); margin-bottom: 16px; word-break: break-all; }
@@ -272,57 +98,26 @@
   .modal-qty-row input { flex: 1; }
   .modal-actions { display: flex; gap: 8px; }
   .modal-actions .btn { flex: 1; justify-content: center; }
-  .loading-overlay {
-    position: fixed; inset: 0;
-    background: rgba(255,255,255,0.85);
-    display: none; align-items: center; justify-content: center;
-    flex-direction: column; gap: 14px; z-index: 100;
-    overflow: hidden;
-  }
+  .loading-overlay { position: fixed; inset: 0; background: rgba(255,255,255,0.85); display: none; align-items: center; justify-content: center; flex-direction: column; gap: 14px; z-index: 100; overflow: hidden; }
   .loading-overlay.show { display: flex; }
-  .spinner {
-    width: 40px; height: 40px;
-    border: 3px solid var(--border);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-  }
-  .loading-overlay.show .spinner {
-    animation: spin 0.7s linear infinite;
-  }
-  .spinner {
-    width: 40px; height: 40px;
-    border: 3px solid var(--border);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: spin 0.7s linear infinite;
-  }
+  .spinner { width: 40px; height: 40px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
-
-  .item-count-badge {
-    display: inline-block;
-    background: var(--accent); color: #fff;
-    border-radius: 999px; font-size: 12px;
-    padding: 1px 8px; margin-left: 6px; font-weight: 600;
-  }
+  .item-count-badge { display: inline-block; background: var(--accent); color: #fff; border-radius: 999px; font-size: 12px; padding: 1px 8px; margin-left: 6px; font-weight: 600; }
 </style>
 </head>
 <body>
 
-<!-- ===== PASTE YOUR APPS SCRIPT WEB APP URL BELOW ===== -->
 <script>
   const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwdcCIp1LFy7aytov6cK4hwcw0twCAuATnFBenXoNmNBSClN3JlSyL-0_L6qRJNvgfnmw/exec';
 </script>
-<!-- ===================================================== -->
 
 <div class="app-header">
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-    <rect x="2" y="4" width="20" height="16" rx="2"/>
-    <path d="M8 4v16M12 4v16M16 4v16M2 9h4M2 14h4M18 9h4M18 14h4"/>
+    <rect x="2" y="4" width="20" height="16" rx="2"/><path d="M8 4v16M12 4v16M16 4v16M2 9h4M2 14h4M18 9h4M18 14h4"/>
   </svg>
   Gondola / Popcard Request
 </div>
 
-<!-- PAGE 1: Setup -->
 <div id="page-setup" class="page active">
   <div class="card">
     <div class="card-title">Staff Details</div>
@@ -335,77 +130,53 @@
         <label>Department</label>
         <select id="inp-dept">
           <option value="">Select...</option>
-          <option>Food</option>
-          <option>Freshmarket</option>
-          <option>Nonfood</option>
-          <option>Departmental</option>
+          <option>Food</option><option>Freshmarket</option><option>Nonfood</option><option>Departmental</option>
         </select>
       </div>
       <div class="field">
         <label>Type</label>
         <select id="inp-type" onchange="onTypeChange()">
-          <option value="">Select...</option>
-          <option>Gondola</option>
-          <option>Popcard</option>
+          <option value="">Select...</option><option>Gondola</option><option>Popcard</option>
         </select>
       </div>
     </div>
     <div class="field" id="size-field" style="display:none;">
       <label>Popcard size</label>
       <select id="inp-size">
-        <option value="">Select size...</option>
-        <option>A4</option>
-        <option>A5</option>
-        <option>A6</option>
-        <option>A8</option>
+        <option value="">Select size...</option<option>A4</option><option>A5</option><option>A6</option><option>A8</option>
       </select>
     </div>
-    <button class="btn btn-primary btn-full" onclick="goToScan()">
-      Continue →
-    </button>
+    <button class="btn btn-primary btn-full" onclick="goToScan()">Continue →</button>
   </div>
 </div>
 
-<!-- PAGE 2: Scan -->
 <div id="page-scan" class="page">
   <div class="meta-tags" id="scan-tags"></div>
-
   <div class="scan-box">
     <div id="video-wrap">
       <video id="video" autoplay playsinline muted></video>
-      <div class="scan-line"></div>
-      <div class="scan-corners"></div>
+      <div class="scan-line"></div><div class="scan-corners"></div>
       <button class="close-cam-btn" onclick="stopCamera()">✕</button>
       <div id="scan-status">Point camera at barcode</div>
     </div>
     <div class="barcode-row">
       <div class="field">
         <label>Barcode</label>
-        <input type="text" id="inp-barcode" placeholder="Scan or type barcode"
-          onkeydown="onBarcodeKey(event)" autocomplete="off" autocorrect="off"
-          autocapitalize="off" spellcheck="false" />
+        <input type="text" id="inp-barcode" placeholder="Scan or type barcode" onkeydown="onBarcodeKey(event)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
       </div>
       <div class="field">
         <label>Qty</label>
         <input type="number" id="inp-qty" value="1" min="1" max="9999" />
       </div>
-      <button class="cam-btn" onclick="toggleCamera()" title="Use camera to scan" aria-label="Camera scan">
-        📷
-      </button>
+      <button class="cam-btn" onclick="toggleCamera()" title="Use camera to scan" aria-label="Camera scan">📷</button>
     </div>
     <p class="hint">Scan barcode with camera, or type it and press Enter</p>
   </div>
 
   <div class="card">
-    <div class="card-title">
-      Items added
-      <span class="item-count-badge" id="count-badge">0</span>
-    </div>
+    <div class="card-title">Items added <span class="item-count-badge" id="count-badge">0</span></div>
     <div class="items-wrap" id="items-body">
-      <div class="empty-state">
-        <div class="icon">🔖</div>
-        No items yet — scan a barcode to begin
-      </div>
+      <div class="empty-state"><div class="icon">🔖</div>No items yet — scan a barcode to begin</div>
     </div>
     <div class="footer-actions" id="scan-footer" style="display:none;">
       <button class="btn btn-danger btn-sm" onclick="clearAll()">🗑 Clear all</button>
@@ -414,20 +185,12 @@
   </div>
 </div>
 
-<!-- PAGE 3: Summary -->
 <div id="page-summary" class="page">
   <div class="card">
     <div class="card-title">Review before submitting</div>
     <div class="meta-tags" id="summary-tags"></div>
     <table>
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>Barcode</th>
-          <th style="text-align:center;">Qty</th>
-          <th></th>
-        </tr>
-      </thead>
+      <thead><tr><th>#</th><th>Barcode</th><th style="text-align:center;">Qty</th><th></th></tr></thead>
       <tbody id="summary-body"></tbody>
     </table>
     <div class="footer-actions">
@@ -437,7 +200,6 @@
   </div>
 </div>
 
-<!-- PAGE 4: Done -->
 <div id="page-done" class="page">
   <div class="card">
     <div class="success-box">
@@ -449,7 +211,6 @@
   </div>
 </div>
 
-<!-- Scan Confirm Modal -->
 <div class="modal-overlay" id="scan-modal">
   <div class="modal">
     <div class="modal-title">📷 Barcode Scanned</div>
@@ -469,7 +230,6 @@
   <div class="spinner"></div>
   <p style="color:#555; font-size:14px;">Submitting to Google Sheet…</p>
 </div>
-
 <div class="toast" id="toast"></div>
 
 <script src="https://unpkg.com/@zxing/library@latest/umd/index.min.js"></script>
@@ -478,55 +238,54 @@ let items = [];
 let codeReader = null;
 let cameraActive = false;
 let scanPromptOpen = false;
+let scanBuffer = '';
+let scanBufferTimer = null;
 
-// ── Helpers ──────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+
 function showPage(id) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.getElementById('page-' + id).classList.add('active');
+  $('page-' + id).classList.add('active');
   window.scrollTo(0, 0);
 }
 
 function toast(msg, dur = 2200) {
-  const el = document.getElementById('toast');
+  const el = $('toast');
   el.textContent = msg;
   el.classList.add('show');
   setTimeout(() => el.classList.remove('show'), dur);
 }
 
-function setLoading(show) {
-  document.getElementById('loading').classList.toggle('show', show);
+function setLoading(show) { $('loading').classList.toggle('show', show); }
+
+function onTypeChange() {
+  const isPop = $('inp-type').value === 'Popcard';
+  $('size-field').style.display = isPop ? 'block' : 'none';
+  if (!isPop) $('inp-size').value = '';
 }
 
-// ── Page 1: Setup ─────────────────────────────────────────
-function onTypeChange() {
-  const v = document.getElementById('inp-type').value;
-  document.getElementById('size-field').style.display = v === 'Popcard' ? 'block' : 'none';
-  if (v !== 'Popcard') document.getElementById('inp-size').value = '';
+function getMetaTagsHTML() {
+  const size = $('inp-size').value;
+  return [$('inp-name').value.trim(), $('inp-dept').value, $('inp-type').value + (size ? ' · ' + size : '')]
+    .map(l => `<span class="tag">${l}</span>`).join('');
 }
 
 function goToScan() {
-  const name = document.getElementById('inp-name').value.trim();
-  const dept = document.getElementById('inp-dept').value;
-  const type = document.getElementById('inp-type').value;
-  const size = document.getElementById('inp-size').value;
-  if (!name) return toast('Please enter your name');
-  if (!dept)  return toast('Please select a department');
-  if (!type)  return toast('Please select Gondola or Popcard');
-  if (type === 'Popcard' && !size) return toast('Please select a Popcard size');
+  if (!$('inp-name').value.trim()) return toast('Please enter your name');
+  if (!$('inp-dept').value) return toast('Please select a department');
+  if (!$('inp-type').value) return toast('Please select Gondola or Popcard');
+  if ($('inp-type').value === 'Popcard' && !$('inp-size').value) return toast('Please select a Popcard size');
 
-  const tags = document.getElementById('scan-tags');
-  const labels = [name, dept, type + (size ? ' · ' + size : '')];
-  tags.innerHTML = labels.map(l => `<span class="tag">${l}</span>`).join('');
+  $('scan-tags').innerHTML = getMetaTagsHTML();
   showPage('scan');
-  setTimeout(() => document.getElementById('inp-barcode').focus(), 200);
+  setTimeout(() => $('inp-barcode').focus(), 200);
 }
 
-// ── Page 2: Scan ─────────────────────────────────────────
 function onBarcodeKey(e) {
   if (e.key === 'Enter') {
     scanBuffer = '';
     clearTimeout(scanBufferTimer);
-    const bc = document.getElementById('inp-barcode').value.trim();
+    const bc = $('inp-barcode').value.trim();
     if (bc) addItem(bc);
   }
 }
@@ -534,8 +293,9 @@ function onBarcodeKey(e) {
 function addItem(barcode, autoQty) {
   barcode = barcode.trim();
   if (!barcode) return;
-  const qty = autoQty !== undefined ? autoQty : (parseInt(document.getElementById('inp-qty').value) || 1);
+  const qty = autoQty !== undefined ? autoQty : (parseInt($('inp-qty').value) || 1);
   const existing = items.find(i => i.barcode === barcode);
+  
   if (existing) {
     existing.qty += qty;
     toast(`Updated: ${barcode} (qty now ${existing.qty})`);
@@ -543,35 +303,24 @@ function addItem(barcode, autoQty) {
     items.push({ barcode, qty });
     toast(`Added: ${barcode}`);
   }
-  document.getElementById('inp-barcode').value = '';
-  document.getElementById('inp-qty').value = '1';
-  document.getElementById('inp-barcode').focus();
+  $('inp-barcode').value = '';
+  $('inp-qty').value = '1';
+  $('inp-barcode').focus();
   renderItems();
 }
 
-function removeItem(i) {
-  items.splice(i, 1);
-  renderItems();
-}
-
-function clearAll() {
-  if (!confirm('Remove all items?')) return;
-  items = [];
-  renderItems();
-}
+function removeItem(i) { items.splice(i, 1); renderItems(); }
+function clearAll() { if (confirm('Remove all items?')) { items = []; renderItems(); } }
 
 function renderItems() {
-  const badge = document.getElementById('count-badge');
-  const body = document.getElementById('items-body');
-  const footer = document.getElementById('scan-footer');
-  badge.textContent = items.length;
-  footer.style.display = items.length ? 'flex' : 'none';
+  $('count-badge').textContent = items.length;
+  $('scan-footer').style.display = items.length ? 'flex' : 'none';
 
   if (!items.length) {
-    body.innerHTML = `<div class="empty-state"><div class="icon">🔖</div>No items yet — scan a barcode to begin</div>`;
+    $('items-body').innerHTML = `<div class="empty-state"><div class="icon">🔖</div>No items yet — scan a barcode to begin</div>`;
     return;
   }
-  body.innerHTML = `<table>
+  $('items-body').innerHTML = `<table>
     <thead><tr><th>#</th><th>Barcode</th><th style="text-align:center;">Qty</th><th></th></tr></thead>
     <tbody>
       ${items.map((item, i) => `
@@ -579,112 +328,75 @@ function renderItems() {
           <td style="color:#999;font-size:12px;">${i+1}</td>
           <td class="barcode-cell">${item.barcode}</td>
           <td style="text-align:center;font-weight:600;">${item.qty}</td>
-          <td style="text-align:right;">
-            <button class="btn btn-danger btn-sm" onclick="removeItem(${i})">✕</button>
-          </td>
+          <td style="text-align:right;"><button class="btn btn-danger btn-sm" onclick="removeItem(${i})">✕</button></td>
         </tr>`).join('')}
     </tbody>
   </table>`;
 }
 
-// ── Scan Prompt ───────────────────────────────────────────
 function showScanPrompt(code) {
   scanPromptOpen = true;
-  // Pause camera while user confirms
   if (codeReader) { try { codeReader.reset(); } catch(e) {} codeReader = null; }
   cameraActive = false;
-  document.getElementById('modal-barcode').textContent = code;
-  document.getElementById('modal-qty').value = document.getElementById('inp-qty').value || 1;
-  document.getElementById('scan-modal').classList.add('show');
-  setTimeout(() => document.getElementById('modal-qty').focus(), 100);
+  $('modal-barcode').textContent = code;
+  $('modal-qty').value = $('inp-qty').value || 1;
+  $('scan-modal').classList.add('show');
+  setTimeout(() => $('modal-qty').focus(), 100);
 }
 
 function confirmScanPrompt() {
-  const code = document.getElementById('modal-barcode').textContent;
-  const qty = parseInt(document.getElementById('modal-qty').value) || 1;
+  const code = $('modal-barcode').textContent;
+  const qty = parseInt($('modal-qty').value) || 1;
   dismissScanPrompt();
   addItem(code, qty);
 }
 
 function dismissScanPrompt() {
   scanPromptOpen = false;
-  document.getElementById('scan-modal').classList.remove('show');
-  // Restart camera automatically if video panel is still open
-  if (document.getElementById('video-wrap').style.display !== 'none') {
-    setTimeout(startCamera, 300);
-  }
+  $('scan-modal').classList.remove('show');
+  if ($('video-wrap').style.display !== 'none') setTimeout(startCamera, 300);
 }
 
-// ── Physical barcode scanner support ─────────────────────
-// Scanners act like keyboards: fast keystrokes then Enter.
-// Capture globally so the field doesn't need to be focused.
-let scanBuffer = '';
-let scanBufferTimer = null;
-
 document.addEventListener('keydown', function(e) {
-  if (!document.getElementById('page-scan').classList.contains('active')) return;
-  if (scanPromptOpen) return;
-
-  const barcodeInput = document.getElementById('inp-barcode');
-  const isInBarcodeField = document.activeElement === barcodeInput;
+  if (!$('page-scan').classList.contains('active') || scanPromptOpen) return;
+  const bcInput = $('inp-barcode');
+  const isFocused = document.activeElement === bcInput;
 
   if (e.key === 'Enter') {
-    // If field has focus, onBarcodeKey handles it — but also check global buffer
     if (scanBuffer.length > 0) {
       const bc = scanBuffer.trim();
       scanBuffer = '';
       clearTimeout(scanBufferTimer);
       if (bc) addItem(bc);
       e.preventDefault();
-    } else if (!isInBarcodeField) {
-      // Enter without field focus — do nothing
     }
-    // if field has focus, onBarcodeKey handles it normally
     return;
   }
-
-  // Skip non-printable keys
   if (e.key.length > 1) return;
 
-  if (isInBarcodeField) {
-    // Field has focus — let browser handle typing normally
-    // but buffer simultaneously to detect scanner speed
-    scanBuffer += e.key;
-    clearTimeout(scanBufferTimer);
-    scanBufferTimer = setTimeout(() => { scanBuffer = ''; }, 200);
-  } else {
-    // Field doesn't have focus — buffer all chars and focus field
-    scanBuffer += e.key;
-    clearTimeout(scanBufferTimer);
-    scanBufferTimer = setTimeout(() => {
-      if (barcodeInput && scanBuffer.length > 0) {
-        barcodeInput.value = scanBuffer;
-        barcodeInput.focus();
-      }
-      scanBuffer = '';
-    }, 100);
-  }
+  scanBuffer += e.key;
+  clearTimeout(scanBufferTimer);
+  scanBufferTimer = setTimeout(() => {
+    if (!isFocused && bcInput && scanBuffer.length > 0) {
+      bcInput.value = scanBuffer;
+      bcInput.focus();
+    }
+    scanBuffer = '';
+  }, isFocused ? 200 : 100);
 });
 
-// Re-focus barcode field when tapping non-interactive areas
 document.addEventListener('click', function(e) {
-  if (!document.getElementById('page-scan').classList.contains('active')) return;
-  if (scanPromptOpen) return;
-  const tag = e.target.tagName;
-  if (tag === 'INPUT' || tag === 'BUTTON' || tag === 'SELECT' || tag === 'VIDEO') return;
-  setTimeout(() => document.getElementById('inp-barcode')?.focus(), 50);
+  if (!$('page-scan').classList.contains('active') || scanPromptOpen) return;
+  if (['INPUT', 'BUTTON', 'SELECT', 'VIDEO'].includes(e.target.tagName)) return;
+  setTimeout(() => $('inp-barcode')?.focus(), 50);
 });
 
-// ── Camera (ZXing) ────────────────────────────────────────
-function toggleCamera() {
-  cameraActive ? stopCamera() : startCamera();
-}
+function toggleCamera() { cameraActive ? stopCamera() : startCamera(); }
 
 function startCamera() {
-  const wrap = document.getElementById('video-wrap');
+  const wrap = $('video-wrap');
   const camBtn = document.querySelector('.cam-btn');
-  const status = document.getElementById('scan-status');
-
+  const status = $('scan-status');
   wrap.style.display = 'block';
   camBtn.classList.add('active');
   status.textContent = 'Starting camera…';
@@ -692,11 +404,10 @@ function startCamera() {
   try {
     codeReader = new ZXing.BrowserMultiFormatReader();
     cameraActive = true;
-    codeReader.decodeFromVideoDevice(null, 'video', function(result, err) {
+    codeReader.decodeFromVideoDevice(null, 'video', (result) => {
       if (result && cameraActive) {
-        const code = result.getText();
-        status.textContent = '✓ ' + code;
-        showScanPrompt(code);
+        status.textContent = '✓ ' + result.getText();
+        showScanPrompt(result.getText());
       }
     });
     status.textContent = 'Point camera at barcode';
@@ -711,36 +422,21 @@ function startCamera() {
 function stopCamera() {
   cameraActive = false;
   if (codeReader) { try { codeReader.reset(); } catch(e) {} codeReader = null; }
-  document.getElementById('video-wrap').style.display = 'none';
-  const camBtn = document.querySelector('.cam-btn');
-  if (camBtn) camBtn.classList.remove('active');
+  $('video-wrap').style.display = 'none';
+  document.querySelector('.cam-btn')?.classList.remove('active');
 }
 
-// ── Page 3: Summary ───────────────────────────────────────
 function goToSummary() {
   if (!items.length) return toast('Add at least one item first');
   stopCamera();
-
-  const name = document.getElementById('inp-name').value.trim();
-  const dept = document.getElementById('inp-dept').value;
-  const type = document.getElementById('inp-type').value;
-  const size = document.getElementById('inp-size').value;
-
-  const labels = [name, dept, type + (size ? ' · ' + size : '')];
-  document.getElementById('summary-tags').innerHTML = labels.map(l => `<span class="tag">${l}</span>`).join('');
-
-  document.getElementById('summary-body').innerHTML = items.map((item, i) => `
+  $('summary-tags').innerHTML = getMetaTagsHTML();
+  $('summary-body').innerHTML = items.map((item, i) => `
     <tr>
       <td style="color:#999;font-size:12px;">${i+1}</td>
       <td class="barcode-cell">${item.barcode}</td>
-      <td style="text-align:center;">
-        <input class="qty-input" type="number" min="1" value="${item.qty}" data-idx="${i}" onchange="updateQty(this)" />
-      </td>
-      <td style="text-align:right;">
-        <button class="btn btn-danger btn-sm" onclick="removeSummaryItem(${i})">✕</button>
-      </td>
+      <td style="text-align:center;"><input class="qty-input" type="number" min="1" value="${item.qty}" data-idx="${i}" onchange="updateQty(this)" /></td>
+      <td style="text-align:right;"><button class="btn btn-danger btn-sm" onclick="removeSummaryItem(${i})">✕</button></td>
     </tr>`).join('');
-
   showPage('summary');
 }
 
@@ -759,38 +455,24 @@ function removeSummaryItem(i) {
 
 function goBack(page) { showPage(page); }
 
-// ── Submit ────────────────────────────────────────────────
 async function submitData() {
-  if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL === 'PASTE_YOUR_WEB_APP_URL_HERE') {
-    alert('Setup needed: Please paste your Google Apps Script Web App URL into the index.html file where indicated.');
-    return;
-  }
-
-  const name = document.getElementById('inp-name').value.trim();
-  const dept = document.getElementById('inp-dept').value;
-  const type = document.getElementById('inp-type').value;
-  const size = document.getElementById('inp-size').value;
-
+  if (!APPS_SCRIPT_URL) return alert('Setup needed: Please paste your Google Apps Script Web App URL.');
+  
   const payload = {
-    staffName: name,
-    department: dept,
-    type: type,
-    size: size,
+    staffName: $('inp-name').value.trim(),
+    department: $('inp-dept').value,
+    type: $('inp-type').value,
+    size: $('inp-size').value,
     items: items
   };
 
   setLoading(true);
   try {
-    const res = await fetch(APPS_SCRIPT_URL, {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    });
+    const res = await fetch(APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
     const data = await res.json();
     setLoading(false);
     if (data.success) {
-      const total = items.reduce((s, i) => s + i.qty, 0);
-      document.getElementById('done-msg').textContent =
-        `${data.rowsAdded} barcode(s) saved · ${total} total qty · ${dept} · ${type}${size ? ' ' + size : ''}`;
+      $('done-msg').textContent = `${data.rowsAdded} barcode(s) saved · ${items.reduce((s, i) => s + i.qty, 0)} total qty · ${payload.department} · ${payload.type}${payload.size ? ' ' + payload.size : ''}`;
       showPage('done');
     } else {
       toast('Error: ' + (data.error || 'Unknown error'), 4000);
@@ -801,15 +483,11 @@ async function submitData() {
   }
 }
 
-// ── Page 4: Done ─────────────────────────────────────────
 function startNew() {
   items = [];
-  document.getElementById('inp-name').value = '';
-  document.getElementById('inp-dept').value = '';
-  document.getElementById('inp-type').value = '';
-  document.getElementById('inp-size').value = '';
-  document.getElementById('size-field').style.display = 'none';
-  document.getElementById('scan-tags').innerHTML = '';
+  ['inp-name', 'inp-dept', 'inp-type', 'inp-size'].forEach(id => $(id).value = '');
+  $('size-field').style.display = 'none';
+  $('scan-tags').innerHTML = '';
   renderItems();
   showPage('setup');
 }
