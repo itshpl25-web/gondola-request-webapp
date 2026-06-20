@@ -51,6 +51,14 @@
   }
 
   .app-header svg { flex-shrink: 0; }
+  .queue-badge {
+    margin-left: auto;
+    background: #fbbc04; color: #2b2200;
+    font-size: 12px; font-weight: 700;
+    min-width: 22px; height: 22px; border-radius: 999px;
+    align-items: center; justify-content: center;
+    padding: 0 6px;
+  }
 
   .page { display: none; padding: 16px; max-width: 600px; margin: 0 auto; }
   .page.active { display: block; }
@@ -310,7 +318,7 @@
 
 <!-- ===== PASTE YOUR APPS SCRIPT WEB APP URL BELOW ===== -->
 <script>
-  const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwdcCIp1LFy7aytov6cK4hwcw0twCAuATnFBenXoNmNBSClN3JlSyL-0_L6qRJNvgfnmw/exec";
+  const APPS_SCRIPT_URL = "PASTE_YOUR_WEB_APP_URL_HERE";
 </script>
 <!-- ===================================================== -->
 
@@ -320,6 +328,7 @@
     <path d="M8 4v16M12 4v16M16 4v16M2 9h4M2 14h4M18 9h4M18 14h4"/>
   </svg>
   Gondola / Popcard Request
+  <span id="queue-badge" class="queue-badge" style="display:none;" title="Pending offline requests — will auto-send when online"></span>
 </div>
 
 <!-- PAGE 1: Setup -->
@@ -762,6 +771,75 @@ function removeSummaryItem(i) {
 function goBack(page) { showPage(page); }
 
 // ── Submit ────────────────────────────────────────────────
+// ── Offline Retry Queue ───────────────────────────────────
+// If a submission fails (no internet, server error), it's saved locally
+// and retried automatically once the connection is back.
+const QUEUE_KEY = 'gondola_pending_queue';
+
+function getQueue() {
+  try { return JSON.parse(localStorage.getItem(QUEUE_KEY)) || []; }
+  catch(e) { return []; }
+}
+
+function saveQueue(queue) {
+  try { localStorage.setItem(QUEUE_KEY, JSON.stringify(queue)); }
+  catch(e) { /* storage unavailable, fail silently */ }
+}
+
+function queuePayload(payload) {
+  const queue = getQueue();
+  queue.push({ id: Date.now() + '_' + Math.random().toString(36).slice(2), payload, attempts: 0 });
+  saveQueue(queue);
+  updateQueueBadge();
+}
+
+async function trySendPayload(payload) {
+  const res = await fetch(APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
+  const data = await res.json();
+  if (!data.success) throw new Error(data.error || 'Server rejected request');
+  return data;
+}
+
+async function processQueue() {
+  if (!navigator.onLine) return;
+  let queue = getQueue();
+  if (!queue.length) return;
+
+  const stillPending = [];
+  for (const entry of queue) {
+    try {
+      await trySendPayload(entry.payload);
+    } catch (e) {
+      entry.attempts = (entry.attempts || 0) + 1;
+      stillPending.push(entry);
+    }
+  }
+  saveQueue(stillPending);
+  updateQueueBadge();
+  if (stillPending.length < queue.length) {
+    const sentCount = queue.length - stillPending.length;
+    toast(`${sentCount} queued request(s) sent ✓`, 2500);
+  }
+}
+
+function updateQueueBadge() {
+  const count = getQueue().length;
+  const badge = document.getElementById('queue-badge');
+  if (!badge) return;
+  if (count > 0) {
+    badge.style.display = 'flex';
+    badge.textContent = count;
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+// Retry automatically when the device comes back online
+window.addEventListener('online', () => { toast('Back online — sending queued requests…', 2000); processQueue(); });
+// Also check periodically in case 'online' event doesn't fire reliably
+setInterval(processQueue, 30000);
+
+// ── Submit ────────────────────────────────────────────────
 async function submitData() {
   if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL === 'PASTE_YOUR_WEB_APP_URL_HERE') {
     alert('Setup needed: Please paste your Google Apps Script Web App URL into the index.html file where indicated.');
@@ -772,34 +850,25 @@ async function submitData() {
   const dept = document.getElementById('inp-dept').value;
   const type = document.getElementById('inp-type').value;
   const size = document.getElementById('inp-size').value;
+  const total = items.reduce((s, i) => s + i.qty, 0);
 
-  const payload = {
-    staffName: name,
-    department: dept,
-    type: type,
-    size: size,
-    items: items
-  };
+  const payload = { staffName: name, department: dept, type: type, size: size, items: items };
 
   setLoading(true);
   try {
-    const res = await fetch(APPS_SCRIPT_URL, {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    });
-    const data = await res.json();
+    const data = await trySendPayload(payload);
     setLoading(false);
-    if (data.success) {
-      const total = items.reduce((s, i) => s + i.qty, 0);
-      document.getElementById('done-msg').textContent =
-        `${data.rowsAdded} barcode(s) saved · ${total} total qty · ${dept} · ${type}${size ? ' ' + size : ''}`;
-      showPage('done');
-    } else {
-      toast('Error: ' + (data.error || 'Unknown error'), 4000);
-    }
+    document.getElementById('done-msg').textContent =
+      `${data.rowsAdded} barcode(s) saved · ${total} total qty · ${dept} · ${type}${size ? ' ' + size : ''}`;
+    showPage('done');
   } catch(e) {
     setLoading(false);
-    toast('Network error — check your connection', 4000);
+    // Save to local queue so nothing is lost — will auto-send once back online
+    queuePayload(payload);
+    document.getElementById('done-msg').textContent =
+      `Saved offline — ${items.length} barcode(s), ${total} total qty. Will auto-send once you're back online.`;
+    showPage('done');
+    toast('No connection — request saved and queued', 3500);
   }
 }
 
@@ -815,6 +884,9 @@ function startNew() {
   renderItems();
   showPage('setup');
 }
+// ── Init ──────────────────────────────────────────────────
+updateQueueBadge();
+processQueue();
 </script>
 </body>
 </html>
