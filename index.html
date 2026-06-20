@@ -624,8 +624,8 @@ function dismissScanPrompt() {
 // We detect scanner-speed typing and auto-submit after a short pause, even with no Enter.
 let scanBuffer = '';
 let scanBufferTimer = null;
-let lastKeyTime = 0;
-let scanBufferIsFast = true; // tracks whether every keystroke in buffer was scanner-speed
+let burstKeyCount = 0;
+let burstStartTime = 0;
 
 document.addEventListener('keydown', function(e) {
   if (!document.getElementById('page-scan').classList.contains('active')) return;
@@ -634,11 +634,10 @@ document.addEventListener('keydown', function(e) {
   const barcodeInput = document.getElementById('inp-barcode');
   const isInBarcodeField = document.activeElement === barcodeInput;
   const now = Date.now();
-  const gap = now - lastKeyTime;
-  lastKeyTime = now;
 
   if (e.key === 'Enter') {
     clearTimeout(scanBufferTimer);
+    burstKeyCount = 0;
     const bc = (isInBarcodeField ? barcodeInput.value : scanBuffer).trim();
     scanBuffer = '';
     if (bc) { addItem(bc); e.preventDefault(); }
@@ -647,44 +646,41 @@ document.addEventListener('keydown', function(e) {
 
   if (e.key.length > 1) return; // skip non-printable keys
 
-  // A new burst starts if there's been a pause — reset speed tracking
-  if (gap > 250) { scanBuffer = ''; scanBufferIsFast = true; }
-  // Scanners send keystrokes faster than ~25ms apart; humans rarely do.
-  // Once any gap is "slow", this burst is treated as manual typing — never auto-submit it.
-  if (scanBuffer.length > 0 && gap > 25) scanBufferIsFast = false;
-
-  scanBuffer += e.key;
-  clearTimeout(scanBufferTimer);
+  // Track burst: a scanner blasts ALL characters of a barcode within a few
+  // milliseconds total. We measure total elapsed time for the burst so far;
+  // human typing of 4+ characters reliably takes well over 200ms even when fast.
+  if (burstKeyCount === 0) burstStartTime = now;
+  burstKeyCount++;
 
   if (isInBarcodeField) {
-    // Field has focus — browser types normally regardless.
-    // Only auto-submit if the whole burst was scanner-speed.
-    scanBufferTimer = setTimeout(() => {
-      if (scanBufferIsFast && scanBuffer.length >= 4) {
-        const val = barcodeInput.value.trim();
-        if (val.length >= 4) {
-          addItem(val);
-          barcodeInput.value = ''; // prevent a late Enter from resubmitting
-        }
-      }
-      scanBuffer = '';
-      scanBufferIsFast = true;
-    }, 150);
+    scanBuffer = barcodeInput.value + e.key; // approximate post-keystroke value
   } else {
-    // Field doesn't have focus — only scanners type without focus (humans click/tap first)
-    scanBufferTimer = setTimeout(() => {
+    scanBuffer += e.key;
+  }
+
+  clearTimeout(scanBufferTimer);
+  scanBufferTimer = setTimeout(() => {
+    const elapsed = Date.now() - burstStartTime;
+    const avgGapMs = burstKeyCount > 1 ? elapsed / (burstKeyCount - 1) : 999;
+    const looksLikeScanner = burstKeyCount >= 4 && avgGapMs < 30;
+
+    if (!isInBarcodeField) {
+      // No focus = definitely a scanner (humans must tap field first)
       if (scanBuffer.length > 0) {
         barcodeInput.value = scanBuffer;
         barcodeInput.focus();
-        if (scanBufferIsFast && scanBuffer.length >= 4) {
-          addItem(scanBuffer);
-          barcodeInput.value = '';
-        }
+        if (scanBuffer.length >= 4) { addItem(scanBuffer); barcodeInput.value = ''; }
       }
-      scanBuffer = '';
-      scanBufferIsFast = true;
-    }, 150);
-  }
+    } else if (looksLikeScanner) {
+      // Field has focus but timing proves it was a scanner blast, not human typing
+      const val = barcodeInput.value.trim();
+      if (val.length >= 4) { addItem(val); barcodeInput.value = ''; }
+    }
+    // Otherwise: normal human typing — do nothing, wait for manual Enter
+
+    scanBuffer = '';
+    burstKeyCount = 0;
+  }, 200);
 });
 
 // Re-focus barcode field when tapping non-interactive areas
