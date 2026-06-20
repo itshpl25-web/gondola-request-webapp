@@ -625,6 +625,7 @@ function dismissScanPrompt() {
 let scanBuffer = '';
 let scanBufferTimer = null;
 let lastKeyTime = 0;
+let scanBufferIsFast = true; // tracks whether every keystroke in buffer was scanner-speed
 
 document.addEventListener('keydown', function(e) {
   if (!document.getElementById('page-scan').classList.contains('active')) return;
@@ -646,34 +647,43 @@ document.addEventListener('keydown', function(e) {
 
   if (e.key.length > 1) return; // skip non-printable keys
 
-  // Gap > 60ms between keystrokes = human typing, reset buffer tracking
-  if (gap > 60) scanBuffer = '';
+  // A new burst starts if there's been a pause — reset speed tracking
+  if (gap > 250) { scanBuffer = ''; scanBufferIsFast = true; }
+  // Scanners send keystrokes faster than ~25ms apart; humans rarely do.
+  // Once any gap is "slow", this burst is treated as manual typing — never auto-submit it.
+  if (scanBuffer.length > 0 && gap > 25) scanBufferIsFast = false;
+
   scanBuffer += e.key;
   clearTimeout(scanBufferTimer);
 
   if (isInBarcodeField) {
-    // Field has focus — browser types normally; auto-submit if it looks scanner-fast
+    // Field has focus — browser types normally regardless.
+    // Only auto-submit if the whole burst was scanner-speed.
     scanBufferTimer = setTimeout(() => {
-      const val = barcodeInput.value.trim();
-      if (val.length >= 4) {
-        addItem(val);
-        barcodeInput.value = ''; // prevent a late Enter from resubmitting
+      if (scanBufferIsFast && scanBuffer.length >= 4) {
+        const val = barcodeInput.value.trim();
+        if (val.length >= 4) {
+          addItem(val);
+          barcodeInput.value = ''; // prevent a late Enter from resubmitting
+        }
       }
       scanBuffer = '';
-    }, 80);
+      scanBufferIsFast = true;
+    }, 150);
   } else {
-    // Field doesn't have focus — buffer chars, fill field, then auto-submit
+    // Field doesn't have focus — only scanners type without focus (humans click/tap first)
     scanBufferTimer = setTimeout(() => {
       if (scanBuffer.length > 0) {
         barcodeInput.value = scanBuffer;
         barcodeInput.focus();
-        if (scanBuffer.length >= 4) {
+        if (scanBufferIsFast && scanBuffer.length >= 4) {
           addItem(scanBuffer);
           barcodeInput.value = '';
         }
       }
       scanBuffer = '';
-    }, 80);
+      scanBufferIsFast = true;
+    }, 150);
   }
 });
 
