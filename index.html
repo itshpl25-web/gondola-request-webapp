@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-<title>Gondola / Popcard Request</title>
+<title>Gondola / Popcard / SoftTag Request</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -327,7 +327,7 @@
     <rect x="2" y="4" width="20" height="16" rx="2"/>
     <path d="M8 4v16M12 4v16M16 4v16M2 9h4M2 14h4M18 9h4M18 14h4"/>
   </svg>
-  Gondola / Popcard Request
+  Gondola / Popcard Request / SoftTag
   <span id="queue-badge" class="queue-badge" style="display:none;" title="Pending offline requests — will auto-send when online"></span>
 </div>
 
@@ -356,6 +356,7 @@
           <option value="">Select...</option>
           <option>Gondola</option>
           <option>Popcard</option>
+          <option>SoftTag</option>
         </select>
       </div>
     </div>
@@ -569,7 +570,7 @@ function goToScan() {
   const size = document.getElementById('inp-size').value;
   if (!name) return toast('Please enter your name');
   if (!dept)  return toast('Please select a department');
-  if (!type)  return toast('Please select Gondola or Popcard');
+  if (!type)  return toast('Please select Gondola / Popcard or SoftTag');
   if (type === 'Popcard' && !size) return toast('Please select a Popcard size');
 
   const tags = document.getElementById('scan-tags');
