@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-<title>Gondola / Popcard / SoftTag Request</title>
+<title>Gondola / Popcard Request</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -211,6 +211,7 @@
   td { padding: 9px 8px; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: middle; }
   tr:last-child td { border-bottom: none; }
   .barcode-cell { font-family: monospace; font-size: 13px; word-break: break-all; }
+  .barcode-cell .item-desc { font-family: -apple-system, sans-serif; color: #555; font-size: 12px; }
 
   .qty-input {
     width: 64px; padding: 5px 8px; font-size: 14px;
@@ -275,6 +276,15 @@
   @keyframes popIn { from { transform: scale(0.92); opacity: 0; } to { transform: scale(1); opacity: 1; } }
   .modal-title { font-size: 13px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
   .modal-barcode { font-family: monospace; font-size: 18px; font-weight: 600; color: var(--text); margin-bottom: 16px; word-break: break-all; }
+  .modal-product-info {
+    font-size: 13px; margin-bottom: 14px; padding: 10px 12px;
+    border-radius: var(--radius-sm); background: var(--bg);
+    border: 1px solid var(--border); min-height: 20px;
+  }
+  .modal-product-info.not-found { color: var(--text3); font-style: italic; }
+  .modal-product-info .prod-name { font-weight: 600; color: var(--text); display: block; margin-bottom: 2px; }
+  .modal-product-info .prod-dept { color: var(--text2); font-size: 12px; }
+  .modal-product-info .dept-warning { color: #b26a00; font-weight: 600; }
   .modal-qty-row { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
   .modal-qty-row label { font-size: 13px; color: var(--text2); font-weight: 500; white-space: nowrap; }
   .modal-qty-row input { flex: 1; }
@@ -318,16 +328,84 @@
 
 <!-- ===== PASTE YOUR APPS SCRIPT WEB APP URL BELOW ===== -->
 <script>
-  const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwdcCIp1LFy7aytov6cK4hwcw0twCAuATnFBenXoNmNBSClN3JlSyL-0_L6qRJNvgfnmw/exec";
+  const APPS_SCRIPT_URL = "PASTE_YOUR_WEB_APP_URL_HERE";
 </script>
 <!-- ===================================================== -->
+
+<!-- Supabase — used ONLY for barcode lookup (product name/description).
+     Submissions still go to Google Sheets via Apps Script above, unchanged. -->
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<script>
+  const SUPABASE_URL = "https://fcigsdjzyyrhxjfuyilc.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_Rc_eDYds1FWvEwM6kpujZA_LNjgUlbP";
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // Maps each specific Supabase department name to this app's 4 broad
+  // department groups (Food / Freshmarket / Nonfood / Departmental).
+  const DEPARTMENT_GROUP_MAP = {
+    // Food
+    "Milk Powder": "Food", "Confectionery": "Food", "Rice": "Food",
+    "Cooking Oil": "Food", "Seasoning": "Food", "Noodles": "Food",
+    "Canned Food": "Food", "Breakfast Food & Spread": "Food",
+    "Baking Needs": "Food", "Beverages": "Food", "Bakery": "Food",
+    // Freshmarket
+    "Alcoholic Drinks": "Freshmarket", "Organic": "Freshmarket",
+    "Dried Food": "Freshmarket", "Frozen / Dairy": "Freshmarket",
+    "Meat & Poultry": "Freshmarket", "Fruits": "Freshmarket",
+    "Vegetables": "Freshmarket", "Prepacked Food": "Freshmarket",
+    // Nonfood
+    "Medicine / Pharmaceutical": "Nonfood", "Sanitary & Diapers": "Nonfood",
+    "Baby Care": "Nonfood", "Hair Care": "Nonfood", "Body Care": "Nonfood",
+    "Facial Care": "Nonfood", "Dental Care": "Nonfood",
+    "Fabric & Household Care": "Nonfood", "Paper Products": "Nonfood",
+    "Air Fresheners": "Nonfood", "Pet Food": "Nonfood", "Tobacco": "Nonfood",
+    // Departmental
+    "Battery": "Departmental", "Household Kitchen": "Departmental",
+    "Household Bathroom": "Departmental", "Electrical": "Departmental",
+    "Hardware": "Departmental", "Car Accessories": "Departmental",
+    "Stationery": "Departmental", "Sports": "Departmental",
+    "Toys": "Departmental", "Gift": "Departmental", "Festival": "Departmental",
+    "Furniture": "Departmental", "Gardening": "Departmental",
+    "Linen Furnishing": "Departmental", "Luggage": "Departmental",
+    "Slippers": "Departmental", "Back To School": "Departmental",
+    "Ladies": "Departmental", "Gents": "Departmental",
+    "Gents Footwear": "Departmental", "Baby / Infant": "Departmental",
+    "Baby Accessories": "Departmental", "Children": "Departmental"
+  };
+
+  // Looks up a barcode in the Supabase "products" table.
+  // Returns { description, material, department, groupMatch } or null if not found.
+  async function lookupProductInfo(barcode) {
+    try {
+      const { data, error } = await sb
+        .from("products")
+        .select("barcode, material, description, departments(name)")
+        .eq("barcode", barcode)
+        .maybeSingle();
+      if (error || !data) return null;
+
+      const specificDept = data.departments ? data.departments.name : "";
+      const group = DEPARTMENT_GROUP_MAP[specificDept] || null;
+
+      return {
+        description: data.description || "",
+        material: data.material || "",
+        department: specificDept,
+        group: group
+      };
+    } catch (e) {
+      return null; // lookup is best-effort — never block scanning if it fails
+    }
+  }
+</script>
+
 
 <div class="app-header">
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
     <rect x="2" y="4" width="20" height="16" rx="2"/>
     <path d="M8 4v16M12 4v16M16 4v16M2 9h4M2 14h4M18 9h4M18 14h4"/>
   </svg>
-  Gondola / Popcard Request / SoftTag
+  Gondola / Popcard Request
   <span id="queue-badge" class="queue-badge" style="display:none;" title="Pending offline requests — will auto-send when online"></span>
 </div>
 
@@ -356,7 +434,6 @@
           <option value="">Select...</option>
           <option>Gondola</option>
           <option>Popcard</option>
-          <option>SoftTag</option>
         </select>
       </div>
     </div>
@@ -466,6 +543,7 @@
   <div class="modal">
     <div class="modal-title">📷 Barcode Scanned</div>
     <div class="modal-barcode" id="modal-barcode"></div>
+    <div class="modal-product-info" id="modal-product-info"></div>
     <div class="modal-qty-row">
       <label>Qty</label>
       <input type="number" id="modal-qty" value="1" min="1" max="9999" />
@@ -492,6 +570,7 @@ let items = [];
 let codeReader = null;
 let cameraActive = false;
 let scanPromptOpen = false;
+let lastLookupInfo = null;
 
 // ── Session persistence (#1) ──────────────────────────────
 // Save items to sessionStorage so a page refresh doesn't lose scanned barcodes.
@@ -556,6 +635,30 @@ function setLoading(show) {
   document.getElementById('loading').classList.toggle('show', show);
 }
 
+// Escapes HTML special characters so barcode/description text from the
+// masterlist can never break page structure or inject markup.
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str == null ? '' : String(str);
+  return div.innerHTML;
+}
+
+// One shared renderer for the barcode + description cell, used by both
+// the scan-page item list and the summary screen so the markup only
+// needs to be maintained in one place.
+function renderBarcodeCell(item) {
+  const desc = item.description
+    ? `<br><span class="item-desc">${escapeHtml(item.description)}</span>`
+    : '';
+  return `${escapeHtml(item.barcode)}${desc}`;
+}
+
+// Builds the "Gondola" / "Popcard · A4" label shown on the scan and
+// summary screens, and included in the done-screen message.
+function getTypeLabel(type, size) {
+  return type + (size ? ' · ' + size : '');
+}
+
 // ── Page 1: Setup ─────────────────────────────────────────
 function onTypeChange() {
   const v = document.getElementById('inp-type').value;
@@ -570,18 +673,18 @@ function goToScan() {
   const size = document.getElementById('inp-size').value;
   if (!name) return toast('Please enter your name');
   if (!dept)  return toast('Please select a department');
-  if (!type)  return toast('Please select Gondola / Popcard or SoftTag');
+  if (!type)  return toast('Please select Gondola or Popcard');
   if (type === 'Popcard' && !size) return toast('Please select a Popcard size');
 
   const tags = document.getElementById('scan-tags');
-  const labels = [name, dept, type + (size ? ' · ' + size : '')];
+  const labels = [name, dept, getTypeLabel(type, size)];
   tags.innerHTML = labels.map(l => `<span class="tag">${l}</span>`).join('');
   showPage('scan');
   setTimeout(() => document.getElementById('inp-barcode').focus(), 200);
 }
 
 // ── Page 2: Scan ─────────────────────────────────────────
-function addItem(barcode, autoQty) {
+function addItem(barcode, autoQty, productInfo) {
   barcode = barcode.trim().replace(/[^0-9]/g, '');
   if (!barcode) { toast('Barcode must contain numbers only'); return; }
   const qty = autoQty !== undefined ? autoQty : (parseInt(document.getElementById('inp-qty').value) || 1);
@@ -590,8 +693,20 @@ function addItem(barcode, autoQty) {
     existing.qty += qty;
     toast(`Updated: ${barcode} (qty now ${existing.qty})`);
   } else {
-    items.push({ barcode, qty });
+    const newItem = { barcode, qty, description: productInfo ? (productInfo.description || '') : '' };
+    items.push(newItem);
     toast(`Added: ${barcode}`);
+    // If we don't already have product info (e.g. physical scanner / manual
+    // entry path, which skips the confirm modal), fetch it now in the
+    // background and fill it in once it arrives — never blocks adding.
+    if (!productInfo) {
+      lookupProductInfo(barcode).then(info => {
+        if (info && info.description) {
+          const item = items.find(i => i.barcode === barcode);
+          if (item) { item.description = info.description; saveSession(); renderItems(); }
+        }
+      });
+    }
   }
   document.getElementById('inp-barcode').value = '';
   document.getElementById('inp-qty').value = '1';
@@ -630,7 +745,7 @@ function renderItems() {
       ${items.map((item, i) => `
         <tr>
           <td style="color:#999;font-size:12px;">${i+1}</td>
-          <td class="barcode-cell">${item.barcode}</td>
+          <td class="barcode-cell">${renderBarcodeCell(item)}</td>
           <td style="text-align:center;font-weight:600;">${item.qty}</td>
           <td style="text-align:right;">
             <button class="btn btn-danger btn-sm" onclick="removeItem(${i})">✕</button>
@@ -641,22 +756,51 @@ function renderItems() {
 }
 
 // ── Scan Prompt ───────────────────────────────────────────
-function showScanPrompt(code) {
+async function showScanPrompt(code) {
   scanPromptOpen = true;
   // Pause camera while user confirms
   if (codeReader) { try { codeReader.reset(); } catch(e) {} codeReader = null; }
   cameraActive = false;
   document.getElementById('modal-barcode').textContent = code;
   document.getElementById('modal-qty').value = document.getElementById('inp-qty').value || 1;
+
+  const infoEl = document.getElementById('modal-product-info');
+  infoEl.className = 'modal-product-info';
+  infoEl.textContent = 'Looking up product…';
+
   document.getElementById('scan-modal').classList.add('show');
   setTimeout(() => document.getElementById('modal-qty').focus(), 100);
+
+  const info = await lookupProductInfo(code);
+  lastLookupInfo = info;
+  renderProductInfo(infoEl, info);
+}
+
+// Fills a .modal-product-info element with lookup results (or a "not found"
+// message). Also flags a soft warning if the scanned item's department
+// doesn't match the department selected on the setup screen — non-blocking,
+// this app only uses Supabase for lookup, not validation.
+function renderProductInfo(el, info) {
+  if (!info) {
+    el.className = 'modal-product-info not-found';
+    el.textContent = 'Product not found in masterlist — you can still add it manually.';
+    return;
+  }
+  const selectedDept = document.getElementById('inp-dept').value;
+  const mismatch = info.group && selectedDept && info.group !== selectedDept;
+
+  el.className = 'modal-product-info';
+  el.innerHTML =
+    `<span class="prod-name">${escapeHtml(info.description) || '(no description)'}</span>` +
+    `<span class="prod-dept">${escapeHtml(info.department) || ''}${mismatch ? ' — <span class="dept-warning">⚠ belongs to ' + escapeHtml(info.group) + '</span>' : ''}</span>`;
 }
 
 function confirmScanPrompt() {
   const code = document.getElementById('modal-barcode').textContent;
   const qty = parseInt(document.getElementById('modal-qty').value) || 1;
+  const info = lastLookupInfo;
   dismissScanPrompt();
-  addItem(code, qty);
+  addItem(code, qty, info);
 }
 
 function dismissScanPrompt() {
@@ -794,13 +938,13 @@ function goToSummary() {
   const type = document.getElementById('inp-type').value;
   const size = document.getElementById('inp-size').value;
 
-  const labels = [name, dept, type + (size ? ' · ' + size : '')];
+  const labels = [name, dept, getTypeLabel(type, size)];
   document.getElementById('summary-tags').innerHTML = labels.map(l => `<span class="tag">${l}</span>`).join('');
 
   document.getElementById('summary-body').innerHTML = items.map((item, i) => `
     <tr>
       <td style="color:#999;font-size:12px;">${i+1}</td>
-      <td class="barcode-cell">${item.barcode}</td>
+      <td class="barcode-cell">${renderBarcodeCell(item)}</td>
       <td style="text-align:center;">
         <input class="qty-input" type="number" min="1" value="${item.qty}" data-idx="${i}" onchange="updateQty(this)" />
       </td>
@@ -917,7 +1061,7 @@ async function submitData() {
     setLoading(false);
     clearSession(); // submission succeeded — safe to clear saved session
     document.getElementById('done-msg').textContent =
-      `${data.rowsAdded} barcode(s) saved · ${total} total qty · ${dept} · ${type}${size ? ' ' + size : ''}`;
+      `${data.rowsAdded} barcode(s) saved · ${total} total qty · ${dept} · ${getTypeLabel(type, size)}`;
     showPage('done');
   } catch(e) {
     setLoading(false);
