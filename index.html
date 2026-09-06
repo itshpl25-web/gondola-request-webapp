@@ -212,6 +212,13 @@
   tr:last-child td { border-bottom: none; }
   .barcode-cell { font-family: monospace; font-size: 13px; word-break: break-all; }
   .barcode-cell .item-desc { font-family: -apple-system, sans-serif; color: #555; font-size: 12px; }
+  .cell-not-found { background: #fdecea; }
+  .not-found-tag { color: #b71c1c; font-weight: 600; font-size: 11px; }
+  .suggestion-inline-btn {
+    background: none; border: none; color: var(--accent); font-size: 12px;
+    text-decoration: underline; cursor: pointer; padding: 0; margin-top: 2px;
+    font-family: -apple-system, sans-serif; display: block;
+  }
 
   .qty-input {
     width: 64px; padding: 5px 8px; font-size: 14px;
@@ -282,6 +289,15 @@
     border: 1px solid var(--border); min-height: 20px;
   }
   .modal-product-info.not-found { color: var(--text3); font-style: italic; }
+  .suggestion-btn {
+    margin-top: 6px; width: 100%; text-align: left;
+    background: var(--accent-bg); border: 1px solid rgba(26,115,232,0.25);
+    border-radius: var(--radius-sm); padding: 8px 10px; font-size: 13px;
+    color: var(--accent); cursor: pointer; font-style: normal;
+    font-family: -apple-system, sans-serif;
+  }
+  .suggestion-btn:hover { background: #dbe9fd; }
+  .suggestion-btn strong { font-weight: 700; }
   .modal-product-info .prod-name { font-weight: 600; color: var(--text); display: block; margin-bottom: 2px; }
   .modal-product-info .prod-dept { color: var(--text2); font-size: 12px; }
   .modal-product-info .dept-warning { color: #b26a00; font-weight: 600; }
@@ -397,6 +413,77 @@
       return null; // lookup is best-effort — never block scanning if it fails
     }
   }
+
+  // Simple Levenshtein edit distance (single-character insert/delete/substitute).
+  // Used to measure how close two barcodes are — a distance of 1 usually
+  // means exactly one mistyped/missing/extra digit.
+  function levenshtein(a, b) {
+    const m = a.length, n = b.length;
+    if (m === 0) return n;
+    if (n === 0) return m;
+    let prev = new Array(n + 1);
+    let curr = new Array(n + 1);
+    for (let j = 0; j <= n; j++) prev[j] = j;
+    for (let i = 1; i <= m; i++) {
+      curr[0] = i;
+      for (let j = 1; j <= n; j++) {
+        const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+        curr[j] = Math.min(prev[j] + 1, curr[j - 1] + 1, prev[j - 1] + cost);
+      }
+      [prev, curr] = [curr, prev];
+    }
+    return prev[n];
+  }
+
+  // When a scanned barcode isn't found exactly, this looks for the closest
+  // match in the masterlist — catches common typos (one wrong, missing, or
+  // extra digit). Queries a small candidate set via prefix AND suffix match
+  // (covers typos anywhere in the barcode), then ranks by edit distance.
+  // Returns null if nothing close enough is found (never a wild guess).
+  async function suggestSimilarBarcode(barcode) {
+    if (!barcode || barcode.length < 4) return null;
+    try {
+      const prefixLen = Math.max(3, barcode.length - 3);
+      const prefix = barcode.slice(0, prefixLen);
+      const suffixLen = Math.max(3, barcode.length - 3);
+      const suffix = barcode.slice(-suffixLen);
+
+      const [prefixRes, suffixRes] = await Promise.all([
+        sb.from("products").select("barcode, description, departments(name)")
+          .ilike("barcode", prefix + "%").limit(25),
+        sb.from("products").select("barcode, description, departments(name)")
+          .ilike("barcode", "%" + suffix).limit(25)
+      ]);
+
+      const rows = [...(prefixRes.data || []), ...(suffixRes.data || [])];
+      if (!rows.length) return null;
+
+      const seen = new Set();
+      let best = null, bestDist = Infinity;
+      for (const row of rows) {
+        if (seen.has(row.barcode) || row.barcode === barcode) continue;
+        seen.add(row.barcode);
+        const dist = levenshtein(barcode, row.barcode);
+        if (dist < bestDist) { bestDist = dist; best = row; }
+      }
+
+      // Only suggest genuinely close matches — not just "some other barcode"
+      const maxAllowedDist = barcode.length <= 8 ? 1 : 2;
+      if (best && bestDist <= maxAllowedDist) {
+        const specificDept = best.departments ? best.departments.name : "";
+        return {
+          barcode: best.barcode,
+          description: best.description || "",
+          department: specificDept,
+          group: DEPARTMENT_GROUP_MAP[specificDept] || null,
+          distance: bestDist
+        };
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
 </script>
 
 
@@ -434,6 +521,7 @@
           <option value="">Select...</option>
           <option>Gondola</option>
           <option>Popcard</option>
+          <option>SoftTag</option>
         </select>
       </div>
     </div>
@@ -645,12 +733,47 @@ function escapeHtml(str) {
 
 // One shared renderer for the barcode + description cell, used by both
 // the scan-page item list and the summary screen so the markup only
-// needs to be maintained in one place.
-function renderBarcodeCell(item) {
-  const desc = item.description
-    ? `<br><span class="item-desc">${escapeHtml(item.description)}</span>`
-    : '';
-  return `${escapeHtml(item.barcode)}${desc}`;
+// needs to be maintained in one place. `context` picks which apply-fix
+// function the inline suggestion button calls (they re-render differently).
+function renderBarcodeCell(item, idx, context) {
+  const applyFn = context === 'summary' ? 'applySuggestionSummary' : 'applySuggestion';
+  let extra = '';
+  if (item.notFound) {
+    extra = `<br><span class="not-found-tag">⚠ not in masterlist</span>`;
+    if (item.suggestion) {
+      extra += `<br><button type="button" class="suggestion-inline-btn" onclick="${applyFn}(${idx})">` +
+        `Did you mean ${escapeHtml(item.suggestion.barcode)}?</button>`;
+    }
+  } else if (item.description) {
+    extra = `<br><span class="item-desc">${escapeHtml(item.description)}</span>`;
+  }
+  return `${escapeHtml(item.barcode)}${extra}`;
+}
+
+// Applies a typo suggestion to an item — swaps in the corrected barcode
+// and its real product info, then clears the not-found flag.
+function applySuggestionCore(item) {
+  if (!item || !item.suggestion) return false;
+  item.barcode = item.suggestion.barcode;
+  item.description = item.suggestion.description;
+  item.notFound = false;
+  item.suggestion = null;
+  return true;
+}
+
+function applySuggestion(i) {
+  const item = items[i];
+  if (!applySuggestionCore(item)) return;
+  toast(`Updated to ${item.barcode}`);
+  saveSession();
+  renderItems();
+}
+
+function applySuggestionSummary(i) {
+  const item = items[i];
+  if (!applySuggestionCore(item)) return;
+  saveSession();
+  goToSummary();
 }
 
 // Builds the "Gondola" / "Popcard · A4" label shown on the scan and
@@ -673,7 +796,7 @@ function goToScan() {
   const size = document.getElementById('inp-size').value;
   if (!name) return toast('Please enter your name');
   if (!dept)  return toast('Please select a department');
-  if (!type)  return toast('Please select Gondola or Popcard');
+  if (!type)  return toast('Please select a type');
   if (type === 'Popcard' && !size) return toast('Please select a Popcard size');
 
   const tags = document.getElementById('scan-tags');
@@ -693,19 +816,35 @@ function addItem(barcode, autoQty, productInfo) {
     existing.qty += qty;
     toast(`Updated: ${barcode} (qty now ${existing.qty})`);
   } else {
-    const newItem = { barcode, qty, description: productInfo ? (productInfo.description || '') : '' };
+    let description = '', notFound = false, suggestion = null;
+    if (productInfo && productInfo.notFound) {
+      notFound = true;
+      suggestion = productInfo.suggestion || null;
+    } else if (productInfo) {
+      description = productInfo.description || '';
+    }
+    const newItem = { barcode, qty, description, notFound, suggestion };
     items.push(newItem);
-    toast(`Added: ${barcode}`);
-    // If we don't already have product info (e.g. physical scanner / manual
-    // entry path, which skips the confirm modal), fetch it now in the
-    // background and fill it in once it arrives — never blocks adding.
-    if (!productInfo) {
-      lookupProductInfo(barcode).then(info => {
+    toast(notFound ? `Added: ${barcode} (not in masterlist)` : `Added: ${barcode}`);
+    // If no lookup was done yet (physical scanner / manual entry, which
+    // skips the confirm modal), do it now in the background — never blocks
+    // adding. If not found, also fetch a typo suggestion for the item list.
+    if (productInfo === undefined) {
+      (async () => {
+        const info = await lookupProductInfo(barcode);
+        const item = items.find(i => i.barcode === barcode);
+        if (!item) return;
         if (info && info.description) {
-          const item = items.find(i => i.barcode === barcode);
-          if (item) { item.description = info.description; saveSession(); renderItems(); }
+          item.description = info.description;
+          item.notFound = false;
+          item.suggestion = null;
+        } else {
+          item.notFound = true;
+          item.suggestion = await suggestSimilarBarcode(barcode);
         }
-      });
+        saveSession();
+        renderItems();
+      })();
     }
   }
   document.getElementById('inp-barcode').value = '';
@@ -745,7 +884,7 @@ function renderItems() {
       ${items.map((item, i) => `
         <tr>
           <td style="color:#999;font-size:12px;">${i+1}</td>
-          <td class="barcode-cell">${renderBarcodeCell(item)}</td>
+          <td class="barcode-cell${item.notFound ? ' cell-not-found' : ''}">${renderBarcodeCell(item, i, 'scan')}</td>
           <td style="text-align:center;font-weight:600;">${item.qty}</td>
           <td style="text-align:right;">
             <button class="btn btn-danger btn-sm" onclick="removeItem(${i})">✕</button>
@@ -772,18 +911,33 @@ async function showScanPrompt(code) {
   setTimeout(() => document.getElementById('modal-qty').focus(), 100);
 
   const info = await lookupProductInfo(code);
-  lastLookupInfo = info;
-  renderProductInfo(infoEl, info);
+  if (info) {
+    lastLookupInfo = info;
+  } else {
+    const suggestion = await suggestSimilarBarcode(code);
+    lastLookupInfo = { notFound: true, suggestion };
+  }
+  renderProductInfo(infoEl, lastLookupInfo);
 }
 
-// Fills a .modal-product-info element with lookup results (or a "not found"
-// message). Also flags a soft warning if the scanned item's department
-// doesn't match the department selected on the setup screen — non-blocking,
-// this app only uses Supabase for lookup, not validation.
+// Fills a .modal-product-info element with lookup results, a "not found"
+// message, or a typo suggestion if a close match exists in the masterlist.
+// Also flags a soft warning if the scanned item's department doesn't match
+// the department selected on the setup screen — non-blocking, this app
+// only uses Supabase for lookup, not validation.
 function renderProductInfo(el, info) {
-  if (!info) {
+  if (!info || info.notFound) {
     el.className = 'modal-product-info not-found';
-    el.textContent = 'Product not found in masterlist — you can still add it manually.';
+    const suggestion = info && info.suggestion;
+    if (suggestion) {
+      el.innerHTML =
+        `⚠ Barcode not found in masterlist.<br>` +
+        `<button type="button" class="suggestion-btn" onclick="useModalSuggestion()">` +
+        `Did you mean <strong>${escapeHtml(suggestion.barcode)}</strong>` +
+        `${suggestion.description ? ' — ' + escapeHtml(suggestion.description) : ''}?</button>`;
+    } else {
+      el.textContent = '⚠ Barcode not found in masterlist — you can still add it manually.';
+    }
     return;
   }
   const selectedDept = document.getElementById('inp-dept').value;
@@ -793,6 +947,18 @@ function renderProductInfo(el, info) {
   el.innerHTML =
     `<span class="prod-name">${escapeHtml(info.description) || '(no description)'}</span>` +
     `<span class="prod-dept">${escapeHtml(info.department) || ''}${mismatch ? ' — <span class="dept-warning">⚠ belongs to ' + escapeHtml(info.group) + '</span>' : ''}</span>`;
+}
+
+// Called when the user taps the "Did you mean X?" suggestion in the scan
+// confirm popup — swaps the barcode shown and re-renders with the
+// suggested product's real info, ready to confirm as normal.
+function useModalSuggestion() {
+  if (!lastLookupInfo || !lastLookupInfo.suggestion) return;
+  const sugg = lastLookupInfo.suggestion;
+  document.getElementById('modal-barcode').textContent = sugg.barcode;
+  lastLookupInfo = { description: sugg.description, department: sugg.department, group: sugg.group };
+  renderProductInfo(document.getElementById('modal-product-info'), lastLookupInfo);
+  toast(`Barcode updated to ${sugg.barcode}`);
 }
 
 function confirmScanPrompt() {
@@ -944,7 +1110,7 @@ function goToSummary() {
   document.getElementById('summary-body').innerHTML = items.map((item, i) => `
     <tr>
       <td style="color:#999;font-size:12px;">${i+1}</td>
-      <td class="barcode-cell">${renderBarcodeCell(item)}</td>
+      <td class="barcode-cell${item.notFound ? ' cell-not-found' : ''}">${renderBarcodeCell(item, i, 'summary')}</td>
       <td style="text-align:center;">
         <input class="qty-input" type="number" min="1" value="${item.qty}" data-idx="${i}" onchange="updateQty(this)" />
       </td>
