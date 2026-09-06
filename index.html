@@ -298,6 +298,18 @@
   }
   .suggestion-btn:hover { background: #dbe9fd; }
   .suggestion-btn strong { font-weight: 700; }
+
+  .typo-alert-title {
+    color: #b71c1c; display: flex; align-items: center; gap: 6px;
+    animation: typoAttentionPulse 1s ease-in-out 2;
+  }
+  @keyframes typoAttentionPulse {
+    0%, 100% { opacity: 1; } 50% { opacity: 0.5; }
+  }
+  .typo-alert-text { font-size: 14px; color: var(--text2); margin-bottom: 14px; }
+  .typo-alert-text strong { font-family: monospace; color: var(--text); }
+  #typo-modal .suggestion-btn { width: 100%; text-align: center; }
+  #typo-suggested-desc { display: block; font-size: 12px; font-weight: normal; margin-top: 2px; }
   .modal-product-info .prod-name { font-weight: 600; color: var(--text); display: block; margin-bottom: 2px; }
   .modal-product-info .prod-dept { color: var(--text2); font-size: 12px; }
   .modal-product-info .dept-warning { color: #b26a00; font-weight: 600; }
@@ -643,6 +655,26 @@
   </div>
 </div>
 
+<!-- Typo Alert Modal — pops up when a scanner/manual entry turns out to be
+     an unrecognized barcode with a close match in the masterlist. Blocks
+     further scanning until the staff picks Fix or Keep. -->
+<div class="modal-overlay" id="typo-modal">
+  <div class="modal">
+    <div class="modal-title typo-alert-title">⚠️ Possible Typo</div>
+    <p class="typo-alert-text">
+      <strong id="typo-scanned-barcode"></strong> was not found in the masterlist.
+    </p>
+    <button type="button" class="suggestion-btn" id="typo-suggestion-btn" onclick="typoAlertFix()">
+      Did you mean <strong id="typo-suggested-barcode"></strong>
+      <span id="typo-suggested-desc"></span>?
+    </button>
+    <div class="modal-actions" style="margin-top:14px;">
+      <button class="btn" onclick="typoAlertKeep()">Keep as scanned</button>
+      <button class="btn btn-primary" onclick="typoAlertFix()">Fix barcode ✓</button>
+    </div>
+  </div>
+</div>
+
 <div class="loading-overlay" id="loading">
   <div class="spinner"></div>
   <p style="color:#555; font-size:14px;">Submitting to Google Sheet…</p>
@@ -658,6 +690,7 @@ let items = [];
 let codeReader = null;
 let cameraActive = false;
 let scanPromptOpen = false;
+let typoAlertOpen = false;
 let lastLookupInfo = null;
 
 // ── Session persistence (#1) ──────────────────────────────
@@ -776,6 +809,47 @@ function applySuggestionSummary(i) {
   goToSummary();
 }
 
+// ── Typo Alert Popup ──────────────────────────────────────
+// Shown automatically when a scanner/manual-entry barcode (which skips the
+// camera confirm modal) turns out to be unrecognized AND a close match
+// exists in the masterlist. Blocks further scanning until the staff picks
+// "Fix" or "Keep as scanned" — hard to miss mid-scan-session.
+let typoAlertBarcode = null;
+
+function showTypoAlert(barcode) {
+  const item = items.find(i => i.barcode === barcode);
+  if (!item || !item.suggestion) return;
+
+  typoAlertOpen = true;
+  typoAlertBarcode = barcode;
+
+  document.getElementById('typo-scanned-barcode').textContent = barcode;
+  document.getElementById('typo-suggested-barcode').textContent = item.suggestion.barcode;
+  document.getElementById('typo-suggested-desc').textContent = item.suggestion.description || '';
+  document.getElementById('typo-modal').classList.add('show');
+
+  // Vibrate if supported — extra attention cue since staff may not be
+  // looking directly at the screen while scanning quickly.
+  try { navigator.vibrate && navigator.vibrate([200, 100, 200]); } catch(e) {}
+}
+
+function typoAlertFix() {
+  const item = items.find(i => i.barcode === typoAlertBarcode);
+  if (item) { applySuggestionCore(item); saveSession(); renderItems(); toast(`Updated to ${item.barcode}`); }
+  closeTypoAlert();
+}
+
+function typoAlertKeep() {
+  closeTypoAlert();
+}
+
+function closeTypoAlert() {
+  typoAlertOpen = false;
+  typoAlertBarcode = null;
+  document.getElementById('typo-modal').classList.remove('show');
+  document.getElementById('inp-barcode')?.focus();
+}
+
 // Builds the "Gondola" / "Popcard · A4" label shown on the scan and
 // summary screens, and included in the done-screen message.
 function getTypeLabel(type, size) {
@@ -844,6 +918,7 @@ function addItem(barcode, autoQty, productInfo) {
         }
         saveSession();
         renderItems();
+        if (item.suggestion) showTypoAlert(barcode);
       })();
     }
   }
@@ -988,7 +1063,7 @@ let burstStartTime = 0;
 
 document.addEventListener('keydown', function(e) {
   if (!document.getElementById('page-scan').classList.contains('active')) return;
-  if (scanPromptOpen) return;
+  if (scanPromptOpen || typoAlertOpen) return;
 
   const barcodeInput = document.getElementById('inp-barcode');
   const isInBarcodeField = document.activeElement === barcodeInput;
@@ -1047,7 +1122,7 @@ document.addEventListener('keydown', function(e) {
 // Re-focus barcode field when tapping non-interactive areas
 document.addEventListener('click', function(e) {
   if (!document.getElementById('page-scan').classList.contains('active')) return;
-  if (scanPromptOpen) return;
+  if (scanPromptOpen || typoAlertOpen) return;
   const tag = e.target.tagName;
   if (tag === 'INPUT' || tag === 'BUTTON' || tag === 'SELECT' || tag === 'VIDEO') return;
   setTimeout(() => document.getElementById('inp-barcode')?.focus(), 50);
