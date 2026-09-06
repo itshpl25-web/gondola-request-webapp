@@ -796,7 +796,7 @@ function goToScan() {
   const size = document.getElementById('inp-size').value;
   if (!name) return toast('Please enter your name');
   if (!dept)  return toast('Please select a department');
-  if (!type)  return toast('Please select a type');
+  if (!type)  return toast('Please select Gondola / Popcard or SoftTag');
   if (type === 'Popcard' && !size) return toast('Please select a Popcard size');
 
   const tags = document.getElementById('scan-tags');
