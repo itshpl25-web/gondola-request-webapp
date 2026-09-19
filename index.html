@@ -1294,7 +1294,15 @@ async function submitData() {
   const size = document.getElementById('inp-size').value;
   const total = items.reduce((s, i) => s + i.qty, 0);
 
-  const payload = { staffName: name, department: dept, type: type, size: size, items: items };
+  const payload = {
+    staffName: name, department: dept, type: type, size: size, items: items,
+    // Unique per logical submission — stays the SAME across any automatic
+    // retries (offline queue, slow-response retry). Lets the server detect
+    // and skip a duplicate write if this exact submission was already
+    // processed, even if the client never saw the original response.
+    requestId: (window.crypto && crypto.randomUUID) ? crypto.randomUUID()
+      : (Date.now() + '_' + Math.random().toString(36).slice(2))
+  };
 
   setLoading(true);
   try {
