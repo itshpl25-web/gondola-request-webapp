@@ -142,7 +142,7 @@
     margin-bottom: 14px;
   }
 
-  .barcode-row { display: grid; grid-template-columns: 1fr 80px 44px; gap: 8px; align-items: flex-end; }
+  .barcode-row { display: grid; grid-template-columns: 1fr 80px 44px 44px; gap: 8px; align-items: flex-end; }
   .barcode-row .field { margin-bottom: 0; }
 
   #video-wrap {
@@ -199,6 +199,20 @@
   }
   .cam-btn:active { background: #f0f0f0; }
   .cam-btn.active { background: var(--accent-bg); border-color: var(--accent); }
+
+  .manual-add-btn {
+    width: 44px; height: 42px;
+    border: 1px solid var(--accent);
+    border-radius: var(--radius-sm);
+    background: var(--accent);
+    color: #fff;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; font-weight: 700;
+    -webkit-tap-highlight-color: transparent;
+    flex-shrink: 0;
+  }
+  .manual-add-btn:active { background: #1557b0; }
 
   .hint { font-size: 12px; color: var(--text3); margin-top: 8px; }
 
@@ -581,8 +595,11 @@
       <button class="cam-btn" onclick="toggleCamera()" title="Use camera to scan" aria-label="Camera scan">
         📷
       </button>
+      <button class="manual-add-btn" onclick="manualAddBarcode()" title="Add barcode" aria-label="Add barcode">
+        ✓
+      </button>
     </div>
-    <p class="hint">Numbers only — scan with camera/scanner or type and press Enter</p>
+    <p class="hint">Numbers only — scan, or type and press Enter / tap ✓ to add</p>
   </div>
 
   <div class="card">
@@ -1127,6 +1144,21 @@ document.addEventListener('click', function(e) {
   if (tag === 'INPUT' || tag === 'BUTTON' || tag === 'SELECT' || tag === 'VIDEO') return;
   setTimeout(() => document.getElementById('inp-barcode')?.focus(), 50);
 });
+
+// Manual "Add" button next to the barcode field — some mobile keyboards
+// don't fire a proper Enter keydown event (varies by device/keyboard app),
+// so this gives a tap-based way to submit the typed barcode as a fallback.
+function manualAddBarcode() {
+  if (scanPromptOpen || typoAlertOpen) return;
+  const barcodeInput = document.getElementById('inp-barcode');
+  const bc = barcodeInput.value.trim();
+  if (!bc) { toast('Type or scan a barcode first'); return; }
+  // Clear any in-flight scanner burst tracking so it doesn't interfere
+  clearTimeout(scanBufferTimer);
+  scanBuffer = '';
+  burstKeyCount = 0;
+  addItem(bc);
+}
 
 // ── Camera (ZXing) ────────────────────────────────────────
 function toggleCamera() {
