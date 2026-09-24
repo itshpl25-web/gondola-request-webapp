@@ -561,6 +561,25 @@
         <option>A8</option>
       </select>
     </div>
+    <div class="field" id="label-field" style="display:none;">
+      <label>Popcard label</label>
+      <select id="inp-label">
+        <option value="">Select label...</option>
+        <option>BOS REKOMEN</option>
+        <option>AHLI JIMAT</option>
+        <option>POTONG HARGA</option>
+        <option>2X MEMBER POINT</option>
+        <option>SERVAY DAY</option>
+        <option>BEST SELLER</option>
+        <option>LIMITED STOCK</option>
+        <option>MUST TRY</option>
+        <option>MURAH NYAAA!</option>
+        <option>PAYDAY SPECIAL!</option>
+        <option>NEW ARRIVAL</option>
+        <option>HARGA BOOM</option>
+        <option>HARGA BOOM (MEMBER)</option>
+      </select>
+    </div>
     <button class="btn btn-primary btn-full" onclick="goToScan()">
       Continue →
     </button>
@@ -722,6 +741,7 @@ function saveSession() {
       dept: document.getElementById('inp-dept')?.value || '',
       type: document.getElementById('inp-type')?.value || '',
       size: document.getElementById('inp-size')?.value || '',
+      label: document.getElementById('inp-label')?.value || '',
       items: items
     };
     sessionStorage.setItem(SESSION_KEY, JSON.stringify(state));
@@ -740,6 +760,7 @@ function restoreSession() {
       onTypeChange();
     }
     if (state.size) document.getElementById('inp-size').value = state.size;
+    if (state.label) document.getElementById('inp-label').value = state.label;
     if (state.items && state.items.length > 0) {
       items = state.items;
       // If items exist, go straight to scan page
@@ -878,6 +899,8 @@ function onTypeChange() {
   const v = document.getElementById('inp-type').value;
   document.getElementById('size-field').style.display = v === 'Popcard' ? 'block' : 'none';
   if (v !== 'Popcard') document.getElementById('inp-size').value = '';
+  document.getElementById('label-field').style.display = v === 'Popcard' ? 'block' : 'none';
+  if (v !== 'Popcard') document.getElementById('inp-label').value = '';
 }
 
 function goToScan() {
@@ -885,14 +908,17 @@ function goToScan() {
   const dept = document.getElementById('inp-dept').value;
   const type = document.getElementById('inp-type').value;
   const size = document.getElementById('inp-size').value;
+  const label = document.getElementById('inp-label').value;
   if (!name) return toast('Please enter your name');
   if (!dept)  return toast('Please select a department');
   if (!type)  return toast('Please select Gondola / Popcard or SoftTag');
   if (type === 'Popcard' && !size) return toast('Please select a Popcard size');
+  if (type === 'Popcard' && !label) return toast('Please select a Popcard label');
 
   const tags = document.getElementById('scan-tags');
-  const labels = [name, dept, getTypeLabel(type, size)];
-  tags.innerHTML = labels.map(l => `<span class="tag">${l}</span>`).join('');
+  const tagList = [name, dept, getTypeLabel(type, size)];
+  if (type === 'Popcard' && label) tagList.push(label);
+  tags.innerHTML = tagList.map(l => `<span class="tag">${l}</span>`).join('');
   showPage('scan');
   setTimeout(() => document.getElementById('inp-barcode').focus(), 200);
 }
@@ -1210,9 +1236,11 @@ function goToSummary() {
   const dept = document.getElementById('inp-dept').value;
   const type = document.getElementById('inp-type').value;
   const size = document.getElementById('inp-size').value;
+  const label = document.getElementById('inp-label').value;
 
-  const labels = [name, dept, getTypeLabel(type, size)];
-  document.getElementById('summary-tags').innerHTML = labels.map(l => `<span class="tag">${l}</span>`).join('');
+  const tagList = [name, dept, getTypeLabel(type, size)];
+  if (type === 'Popcard' && label) tagList.push(label);
+  document.getElementById('summary-tags').innerHTML = tagList.map(l => `<span class="tag">${l}</span>`).join('');
 
   document.getElementById('summary-body').innerHTML = items.map((item, i) => `
     <tr>
@@ -1324,10 +1352,11 @@ async function submitData() {
   const dept = document.getElementById('inp-dept').value;
   const type = document.getElementById('inp-type').value;
   const size = document.getElementById('inp-size').value;
+  const label = document.getElementById('inp-label').value;
   const total = items.reduce((s, i) => s + i.qty, 0);
 
   const payload = {
-    staffName: name, department: dept, type: type, size: size, items: items,
+    staffName: name, department: dept, type: type, size: size, label: label, items: items,
     // Unique per logical submission — stays the SAME across any automatic
     // retries (offline queue, slow-response retry). Lets the server detect
     // and skip a duplicate write if this exact submission was already
@@ -1364,7 +1393,9 @@ function startNew() {
   document.getElementById('inp-dept').value = '';
   document.getElementById('inp-type').value = '';
   document.getElementById('inp-size').value = '';
+  document.getElementById('inp-label').value = '';
   document.getElementById('size-field').style.display = 'none';
+  document.getElementById('label-field').style.display = 'none';
   document.getElementById('scan-tags').innerHTML = '';
   renderItems();
   showPage('setup');
